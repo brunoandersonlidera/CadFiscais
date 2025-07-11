@@ -1,0 +1,130 @@
+# Arquivos de configuração sensíveis
+config.php
+.env
+*.env
+
+# Logs
+logs/*.log
+*.log
+
+# Arquivos temporários
+*.tmp
+*.temp
+*.cache
+
+# Arquivos de backup
+*.bak
+*.backup
+*~
+
+# Arquivos do sistema
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDEs e editores
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Arquivos de upload
+uploads/
+temp/
+tmp/
+
+# Arquivos de sessão
+sessions/
+
+# Arquivos de cache
+cache/
+*.cache
+
+# Arquivos de configuração local
+config.local.php
+database.local.php
+
+# Arquivos de teste
+test_*.php
+debug_*.php
+corrigir_*.php
+verificar_*.php
+remover_*.php
+atualizar_*.php
+limpeza_*.php
+
+# Arquivos de instalação
+instalar_sistema.php
+
+# Arquivos de desenvolvimento
+*.dev.php
+*.test.php
+
+# Arquivos de backup do banco
+*.sql
+*.dump
+
+# Arquivos de configuração do servidor
+.htaccess.local
+apache.conf
+nginx.conf
+
+# Arquivos de certificados
+*.pem
+*.key
+*.crt
+*.p12
+
+# Arquivos de configuração do PHP
+php.ini
+php-fpm.conf
+
+# Arquivos de configuração do MySQL
+my.cnf
+my.ini
+
+# Arquivos de configuração do Apache
+httpd.conf
+apache2.conf
+
+# Arquivos de configuração do Nginx
+nginx.conf
+
+# Arquivos de configuração do PHP-FPM
+www.conf
+pool.d/
+
+# Arquivos de configuração do PHP
+php-fpm.conf
+php-fpm.d/
+
+# Arquivos de configuração do PHP-CLI
+php-cli.ini
+
+# Arquivos de configuração do PHP-CGI
+php-cgi.ini
+
+# Arquivos de configuração do PHP-FPM
+php-fpm.ini
+
+# Arquivos de configuração do PHP-APACHE
+php-apache.ini
+
+# Arquivos de configuração do PHP-NGINX
+php-nginx.ini
+
+# Arquivos de configuração do PHP-CLI
+php-cli.ini
+
+# Arquivos de configuração do PHP-CGI
+php-cgi.ini
+
+# Arquivos de configuração do PHP-FPM
+php-fpm.ini
+
+# Arquivos de configuração do PHP-APACHE
+php-apache.ini
+
+# Arquivos de configuração do PHP-NGINX
+php-nginx.ini 
