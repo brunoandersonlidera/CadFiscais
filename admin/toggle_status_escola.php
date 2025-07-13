@@ -31,7 +31,7 @@ try {
     // Alternar status
     $novo_status = $escola['status'] == 'ativo' ? 'inativo' : 'ativo';
     
-    $sql = "UPDATE escolas SET status = ?, data_atualizacao = NOW() WHERE id = ?";
+    $sql = "UPDATE escolas SET status = ? WHERE id = ?";
     $stmt = $db->prepare($sql);
     $stmt->execute([$novo_status, $escola_id]);
     

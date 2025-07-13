@@ -62,7 +62,7 @@ try {
         $sql = "
             UPDATE escolas 
             SET nome = ?, concurso_id = ?, tipo = ?, endereco = ?, telefone = ?, email = ?, 
-                responsavel = ?, coordenador_idh = ?, coordenador_comissao = ?, capacidade = ?, observacoes = ?, data_atualizacao = NOW()
+                responsavel = ?, coordenador_idh = ?, coordenador_comissao = ?, capacidade = ?, observacoes = ?
             WHERE id = ?
         ";
         $stmt = $db->prepare($sql);
@@ -77,8 +77,8 @@ try {
         // Inserir nova escola
         $sql = "
             INSERT INTO escolas (nome, concurso_id, tipo, endereco, telefone, email, responsavel, 
-                               coordenador_idh, coordenador_comissao, capacidade, observacoes, status, data_cadastro)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ativo', NOW())
+                               coordenador_idh, coordenador_comissao, capacidade, observacoes, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ativo')
         ";
         $stmt = $db->prepare($sql);
         $stmt->execute([
