@@ -113,6 +113,7 @@ include 'includes/header.php';
                                         <label for="email"><i class="fas fa-envelope"></i> E-mail *</label>
                                         <input type="email" class="form-control" id="email" name="email" required 
                                                placeholder="seu@email.com">
+                                        <div class="invalid-feedback" id="email-error"></div>
                                     </div>
                                 </div>
                             </div>
@@ -135,6 +136,7 @@ include 'includes/header.php';
                                         <label for="celular"><i class="fas fa-mobile-alt"></i> Celular *</label>
                                         <input type="tel" class="form-control" id="celular" name="celular" required 
                                                placeholder="(99) 99999-9999" maxlength="15">
+                                        <div class="invalid-feedback" id="celular-error"></div>
                                         <small class="form-text text-muted">Formato: (99) 99999-9999</small>
                                     </div>
                                 </div>
@@ -156,12 +158,15 @@ include 'includes/header.php';
                                         <label for="cpf"><i class="fas fa-id-card"></i> CPF *</label>
                                         <input type="text" class="form-control" id="cpf" name="cpf" required 
                                                placeholder="000.000.000-00" maxlength="14">
+                                        <div class="invalid-feedback" id="cpf-error"></div>
                                     </div>
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-group">
                                         <label for="data_nascimento"><i class="fas fa-calendar"></i> Data de Nascimento *</label>
-                                        <input type="date" class="form-control" id="data_nascimento" name="data_nascimento" required>
+                                        <input type="text" class="form-control" id="data_nascimento" name="data_nascimento" required 
+                                               placeholder="dd/mm/aaaa" maxlength="10">
+                                        <div class="invalid-feedback" id="data_nascimento-error"></div>
                                         <small class="form-text text-muted">Idade mínima: 18 anos</small>
                                     </div>
                                 </div>
@@ -198,6 +203,7 @@ include 'includes/header.php';
                                             <input type="tel" class="form-control" id="whatsapp" name="whatsapp" 
                                                    placeholder="(99) 99999-9999" maxlength="15" disabled>
                                         </div>
+                                        <div class="invalid-feedback" id="whatsapp-error"></div>
                                         <small class="form-text text-muted">Marque se deseja receber contato via WhatsApp</small>
                                     </div>
                                 </div>
@@ -268,6 +274,62 @@ include 'includes/header.php';
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Formulário carregado');
     
+    // Função para validar CPF
+    function validateCPF(cpf) {
+        cpf = cpf.replace(/\D/g, '');
+        
+        if (cpf.length !== 11 || /^(\d)\1+$/.test(cpf)) {
+            return false;
+        }
+        
+        let sum = 0;
+        for (let i = 0; i < 9; i++) {
+            sum += parseInt(cpf.charAt(i)) * (10 - i);
+        }
+        let remainder = (sum * 10) % 11;
+        if (remainder === 10 || remainder === 11) remainder = 0;
+        if (remainder !== parseInt(cpf.charAt(9))) return false;
+        
+        sum = 0;
+        for (let i = 0; i < 10; i++) {
+            sum += parseInt(cpf.charAt(i)) * (11 - i);
+        }
+        remainder = (sum * 10) % 11;
+        if (remainder === 10 || remainder === 11) remainder = 0;
+        if (remainder !== parseInt(cpf.charAt(10))) return false;
+        
+        return true;
+    }
+
+    // Função para validar email
+    function validateEmail(email) {
+        const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return re.test(email);
+    }
+
+    // Função para validar celular brasileiro
+    function validateBrazilianPhone(phone) {
+        const phoneClean = phone.replace(/\D/g, '');
+        if (phoneClean.length < 10 || phoneClean.length > 11) {
+            return false;
+        }
+        
+        // DDDs válidos no Brasil
+        const validDDDs = [11,12,13,14,15,16,17,18,19,21,22,24,27,28,31,32,33,34,35,37,38,41,42,43,44,45,46,47,48,49,51,53,54,55,61,62,63,64,65,66,67,68,69,71,73,74,75,77,79,81,82,83,84,85,86,87,88,89,91,92,93,94,95,96,97,98,99];
+        
+        const ddd = parseInt(phoneClean.substring(0, 2));
+        if (!validDDDs.includes(ddd)) {
+            return false;
+        }
+        
+        // Para celular, deve começar com 9
+        if (phoneClean.length === 11 && phoneClean.charAt(2) !== '9') {
+            return false;
+        }
+        
+        return true;
+    }
+
     // Máscara para CPF
     const cpfInput = document.getElementById('cpf');
     if (cpfInput) {
@@ -277,6 +339,21 @@ document.addEventListener('DOMContentLoaded', function() {
             value = value.replace(/(\d{3})(\d)/, '$1.$2');
             value = value.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
             e.target.value = value;
+            
+            // Validar CPF em tempo real
+            if (value.length === 14) {
+                if (!validateCPF(value)) {
+                    e.target.classList.add('is-invalid');
+                    document.getElementById('cpf-error').textContent = 'CPF inválido';
+                } else {
+                    e.target.classList.remove('is-invalid');
+                    e.target.classList.add('is-valid');
+                    document.getElementById('cpf-error').textContent = '';
+                }
+            } else {
+                e.target.classList.remove('is-invalid', 'is-valid');
+                document.getElementById('cpf-error').textContent = '';
+            }
         });
     }
 
@@ -293,6 +370,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 value = value.replace(/(\d{5})(\d)/, '$1-$2');
             }
             e.target.value = value;
+            
+            // Validar celular em tempo real
+            if (value.length === 15) {
+                const ddi = document.getElementById('ddi').value;
+                if (ddi === '+55' && !validateBrazilianPhone(value)) {
+                    e.target.classList.add('is-invalid');
+                    document.getElementById('celular-error').textContent = 'Número de celular inválido';
+                } else {
+                    e.target.classList.remove('is-invalid');
+                    e.target.classList.add('is-valid');
+                    document.getElementById('celular-error').textContent = '';
+                }
+            } else {
+                e.target.classList.remove('is-invalid', 'is-valid');
+                document.getElementById('celular-error').textContent = '';
+            }
         });
     }
 
@@ -309,6 +402,80 @@ document.addEventListener('DOMContentLoaded', function() {
                 value = value.replace(/(\d{5})(\d)/, '$1-$2');
             }
             e.target.value = value;
+            
+            // Validar WhatsApp em tempo real
+            if (value.length === 15) {
+                const ddi = document.getElementById('ddi').value;
+                if (ddi === '+55' && !validateBrazilianPhone(value)) {
+                    e.target.classList.add('is-invalid');
+                    document.getElementById('whatsapp-error').textContent = 'Número de WhatsApp inválido';
+                } else {
+                    e.target.classList.remove('is-invalid');
+                    e.target.classList.add('is-valid');
+                    document.getElementById('whatsapp-error').textContent = '';
+                }
+            } else {
+                e.target.classList.remove('is-invalid', 'is-valid');
+                document.getElementById('whatsapp-error').textContent = '';
+            }
+        });
+    }
+
+    // Máscara para data de nascimento
+    const dataNascimentoInput = document.getElementById('data_nascimento');
+    if (dataNascimentoInput) {
+        dataNascimentoInput.addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length >= 2) {
+                value = value.replace(/(\d{2})(\d)/, '$1/$2');
+            }
+            if (value.length >= 5) {
+                value = value.replace(/(\d{2})(\d{2})(\d)/, '$1/$2/$3');
+            }
+            e.target.value = value;
+            
+            // Validar data em tempo real
+            if (value.length === 10) {
+                const [dia, mes, ano] = value.split('/');
+                const data = new Date(ano, mes - 1, dia);
+                const hoje = new Date();
+                const idade = hoje.getFullYear() - data.getFullYear();
+                const mesAtual = hoje.getMonth() - data.getMonth();
+                
+                if (mesAtual < 0 || (mesAtual === 0 && hoje.getDate() < data.getDate())) {
+                    idade--;
+                }
+                
+                if (idade < 18) {
+                    e.target.classList.add('is-invalid');
+                    document.getElementById('data_nascimento-error').textContent = 'Você deve ter pelo menos 18 anos';
+                } else if (data.getDate() != dia || data.getMonth() != mes - 1 || data.getFullYear() != ano) {
+                    e.target.classList.add('is-invalid');
+                    document.getElementById('data_nascimento-error').textContent = 'Data inválida';
+                } else {
+                    e.target.classList.remove('is-invalid');
+                    e.target.classList.add('is-valid');
+                    document.getElementById('data_nascimento-error').textContent = '';
+                }
+            } else {
+                e.target.classList.remove('is-invalid', 'is-valid');
+                document.getElementById('data_nascimento-error').textContent = '';
+            }
+        });
+    }
+
+    // Validar email em tempo real
+    const emailInput = document.getElementById('email');
+    if (emailInput) {
+        emailInput.addEventListener('blur', function(e) {
+            if (e.target.value && !validateEmail(e.target.value)) {
+                e.target.classList.add('is-invalid');
+                document.getElementById('email-error').textContent = 'E-mail inválido';
+            } else {
+                e.target.classList.remove('is-invalid');
+                e.target.classList.add('is-valid');
+                document.getElementById('email-error').textContent = '';
+            }
         });
     }
 
@@ -321,26 +488,49 @@ document.addEventListener('DOMContentLoaded', function() {
             whatsappField.disabled = !this.checked;
             if (!this.checked) {
                 whatsappField.value = '';
+                whatsappField.classList.remove('is-invalid', 'is-valid');
             }
         });
     }
 
-    // Validação de idade
-    const dataNascimentoInput = document.getElementById('data_nascimento');
-    if (dataNascimentoInput) {
-        dataNascimentoInput.addEventListener('change', function() {
-            const dataNascimento = new Date(this.value);
-            const hoje = new Date();
-            const idade = hoje.getFullYear() - dataNascimento.getFullYear();
-            const mes = hoje.getMonth() - dataNascimento.getMonth();
-            
-            if (mes < 0 || (mes === 0 && hoje.getDate() < dataNascimento.getDate())) {
-                idade--;
+    // Preencher WhatsApp automaticamente se for igual ao celular
+    const celularField = document.getElementById('celular');
+    if (celularField && whatsappField) {
+        celularField.addEventListener('blur', function() {
+            if (usaWhatsappCheckbox.checked && !whatsappField.value) {
+                whatsappField.value = this.value;
+                // Disparar evento de input para aplicar máscara
+                whatsappField.dispatchEvent(new Event('input'));
             }
-            
-            if (idade < 18) {
-                alert('Você deve ter pelo menos 18 anos para se cadastrar.');
-                this.value = '';
+        });
+    }
+
+    // Verificar CPF duplicado via AJAX
+    const cpfField = document.getElementById('cpf');
+    const concursoId = document.querySelector('input[name="concurso_id"]').value;
+    
+    if (cpfField) {
+        cpfField.addEventListener('blur', function() {
+            const cpf = this.value.replace(/\D/g, '');
+            if (cpf.length === 11 && validateCPF(this.value)) {
+                // Verificar se CPF já existe
+                fetch('verificar_cpf.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `cpf=${cpf}&concurso_id=${concursoId}`
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.exists) {
+                        this.classList.add('is-invalid');
+                        document.getElementById('cpf-error').textContent = 'CPF já cadastrado neste concurso';
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao verificar CPF:', error);
+                });
             }
         });
     }
@@ -358,6 +548,7 @@ document.addEventListener('DOMContentLoaded', function() {
             ];
             
             let camposVazios = [];
+            let camposInvalidos = [];
             
             camposObrigatorios.forEach(function(campo) {
                 const elemento = document.getElementById(campo);
@@ -368,6 +559,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                     } else if (!elemento.value.trim()) {
                         camposVazios.push(elemento.previousElementSibling?.textContent || campo);
+                    } else if (elemento.classList.contains('is-invalid')) {
+                        camposInvalidos.push(elemento.previousElementSibling?.textContent || campo);
                     }
                 }
             });
@@ -375,6 +568,12 @@ document.addEventListener('DOMContentLoaded', function() {
             if (camposVazios.length > 0) {
                 e.preventDefault();
                 alert('Por favor, preencha todos os campos obrigatórios:\n\n' + camposVazios.join('\n'));
+                return false;
+            }
+            
+            if (camposInvalidos.length > 0) {
+                e.preventDefault();
+                alert('Por favor, corrija os seguintes campos:\n\n' + camposInvalidos.join('\n'));
                 return false;
             }
             
@@ -391,8 +590,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const celular = document.getElementById('celular');
             
             if (ddi && celular && ddi.value === '+55') {
-                const celularLimpo = celular.value.replace(/\D/g, '');
-                if (celularLimpo.length < 10 || celularLimpo.length > 11) {
+                if (!validateBrazilianPhone(celular.value)) {
                     e.preventDefault();
                     alert('Por favor, insira um número de celular válido.');
                     return false;

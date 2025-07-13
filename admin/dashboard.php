@@ -9,9 +9,12 @@ if (!isLoggedIn()) {
 $db = getDB();
 $stats = [];
 
+// Status do cadastro (definido fora do try para evitar warnings)
+$cadastro_aberto = getConfig('cadastro_aberto', '1') == '1';
+
 try {
     // Estatísticas gerais
-    $stmt = $db->query("SELECT COUNT(*) as total FROM fiscais WHERE status = 'ativo'");
+    $stmt = $db->query("SELECT COUNT(*) as total FROM fiscais WHERE status = 'aprovado'");
     $stats['total_fiscais'] = $stmt->fetch(PDO::FETCH_ASSOC)['total'];
     
     $stmt = $db->query("SELECT COUNT(*) as total FROM concursos WHERE status = 'ativo'");
@@ -36,7 +39,7 @@ try {
                 concurso_id,
                 COUNT(*) as fiscais_cadastrados
             FROM fiscais 
-            WHERE status = 'ativo'
+            WHERE status = 'aprovado'
             GROUP BY concurso_id
         ) f ON c.id = f.concurso_id
         WHERE c.status = 'ativo'
@@ -48,6 +51,7 @@ try {
     $stmt = $db->query("
         SELECT 
             CASE 
+                WHEN idade IS NULL OR idade = 0 OR idade = '' THEN 'Sem Idade'
                 WHEN idade < 25 THEN '18-24'
                 WHEN idade < 35 THEN '25-34'
                 WHEN idade < 45 THEN '35-44'
@@ -56,28 +60,57 @@ try {
             END as faixa_etaria,
             COUNT(*) as quantidade
         FROM fiscais 
-        WHERE status = 'ativo'
+        WHERE status = 'aprovado'
         GROUP BY faixa_etaria
-        ORDER BY faixa_etaria
+        ORDER BY 
+            CASE 
+                WHEN faixa_etaria = 'Sem Idade' THEN 0
+                ELSE 1
+            END,
+            faixa_etaria
     ");
     $stats['faixa_etaria'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Últimos cadastros
+    // Distribuição por gênero
     $stmt = $db->query("
         SELECT 
-            f.*,
-            c.titulo as concurso_titulo,
-            c.orgao as concurso_orgao
-        FROM fiscais f
-        JOIN concursos c ON f.concurso_id = c.id
-        WHERE f.status = 'ativo'
-        ORDER BY f.created_at DESC
-        LIMIT 10
+            CASE 
+                WHEN genero IS NULL OR genero = '' THEN 'Não Informado'
+                WHEN genero = 'M' THEN 'Masculino'
+                WHEN genero = 'F' THEN 'Feminino'
+                ELSE 'Outro'
+            END as genero_label,
+            COUNT(*) as quantidade
+        FROM fiscais 
+        WHERE status = 'aprovado'
+        GROUP BY genero_label
+        ORDER BY quantidade DESC
     ");
-    $stats['ultimos_cadastros'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $stats['distribuicao_genero'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Status do cadastro
-    $cadastro_aberto = getConfig('cadastro_aberto', '1') == '1';
+    // Distribuição por status
+    $stmt = $db->query("
+        SELECT 
+            CASE 
+                WHEN status = 'aprovado' THEN 'Aprovado'
+                WHEN status = 'pendente' THEN 'Pendente'
+                WHEN status = 'reprovado' THEN 'Reprovado'
+                WHEN status = 'cancelado' THEN 'Cancelado'
+                ELSE 'Outro'
+            END as status_label,
+            COUNT(*) as quantidade
+        FROM fiscais 
+        GROUP BY status
+        ORDER BY 
+            CASE 
+                WHEN status = 'aprovado' THEN 1
+                WHEN status = 'pendente' THEN 2
+                WHEN status = 'reprovado' THEN 3
+                WHEN status = 'cancelado' THEN 4
+                ELSE 5
+            END
+    ");
+    $stats['distribuicao_status'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
 } catch (Exception $e) {
     logActivity('Erro ao buscar estatísticas: ' . $e->getMessage(), 'ERROR');
@@ -276,7 +309,7 @@ include '../includes/header.php';
 
 <!-- Gráficos e Estatísticas -->
 <div class="row">
-    <div class="col-md-6">
+    <div class="col-md-4">
         <div class="card">
             <div class="card-header">
                 <h5 class="mb-0">
@@ -290,38 +323,30 @@ include '../includes/header.php';
         </div>
     </div>
     
-    <div class="col-md-6">
+    <div class="col-md-4">
         <div class="card">
             <div class="card-header">
                 <h5 class="mb-0">
-                    <i class="fas fa-list me-2"></i>
-                    Últimos Cadastros
+                    <i class="fas fa-venus-mars me-2"></i>
+                    Distribuição por Gênero
                 </h5>
             </div>
             <div class="card-body">
-                <?php if (!empty($stats['ultimos_cadastros'])): ?>
-                <div class="list-group list-group-flush">
-                    <?php foreach ($stats['ultimos_cadastros'] as $fiscal): ?>
-                    <div class="list-group-item d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="mb-1"><?= htmlspecialchars($fiscal['nome']) ?></h6>
-                            <small class="text-muted">
-                                <?= htmlspecialchars($fiscal['concurso_orgao']) ?> - 
-                                <?= date('d/m/Y H:i', strtotime($fiscal['created_at'])) ?>
-                            </small>
-                        </div>
-                        <span class="badge bg-primary rounded-pill">
-                            <?= $fiscal['idade'] ?> anos
-                        </span>
-                    </div>
-                    <?php endforeach; ?>
-                </div>
-                <?php else: ?>
-                <div class="text-center py-3">
-                    <i class="fas fa-users text-muted" style="font-size: 2rem;"></i>
-                    <p class="text-muted mt-2">Nenhum fiscal cadastrado ainda.</p>
-                </div>
-                <?php endif; ?>
+                <canvas id="generoChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-chart-bar me-2"></i>
+                    Distribuição por Status
+                </h5>
+            </div>
+            <div class="card-body">
+                <canvas id="statusChart" width="400" height="200"></canvas>
             </div>
         </div>
     </div>
@@ -372,66 +397,142 @@ include '../includes/header.php';
 <script>
 // Gráfico de distribuição por idade
 document.addEventListener('DOMContentLoaded', function() {
-    const ctx = document.getElementById('idadeChart').getContext('2d');
+    console.log('Script do dashboard carregado');
     
-    const data = <?= json_encode($stats['faixa_etaria'] ?? []) ?>;
-    const labels = data.map(item => item.faixa_etaria);
-    const values = data.map(item => parseInt(item.quantidade));
-    
-    new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-            labels: labels,
-            datasets: [{
-                data: values,
-                backgroundColor: [
-                    '#3498db',
-                    '#2ecc71',
-                    '#f39c12',
-                    '#e74c3c',
-                    '#9b59b6'
-                ],
-                borderWidth: 2,
-                borderColor: '#fff'
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: {
-                        padding: 20,
-                        usePointStyle: true
+    // Gráfico de Idade
+    const ctxIdade = document.getElementById('idadeChart');
+    if (ctxIdade) {
+        const dataIdade = <?= json_encode($stats['faixa_etaria'] ?? []) ?>;
+        console.log('Dados do gráfico de idade:', dataIdade);
+        
+        if (dataIdade && dataIdade.length > 0) {
+            const labelsIdade = dataIdade.map(item => item.faixa_etaria);
+            const valuesIdade = dataIdade.map(item => parseInt(item.quantidade));
+            
+            new Chart(ctxIdade, {
+                type: 'doughnut',
+                data: {
+                    labels: labelsIdade,
+                    datasets: [{
+                        data: valuesIdade,
+                        backgroundColor: [
+                            '#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6', '#34495e'
+                        ],
+                        borderWidth: 2,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
                     }
                 }
-            }
+            });
         }
-    });
+    }
+    
+    // Gráfico de Gênero
+    const ctxGenero = document.getElementById('generoChart');
+    if (ctxGenero) {
+        const dataGenero = <?= json_encode($stats['distribuicao_genero'] ?? []) ?>;
+        console.log('Dados do gráfico de gênero:', dataGenero);
+        
+        if (dataGenero && dataGenero.length > 0) {
+            const labelsGenero = dataGenero.map(item => item.genero_label);
+            const valuesGenero = dataGenero.map(item => parseInt(item.quantidade));
+            
+            new Chart(ctxGenero, {
+                type: 'pie',
+                data: {
+                    labels: labelsGenero,
+                    datasets: [{
+                        data: valuesGenero,
+                        backgroundColor: [
+                            '#3498db', '#e74c3c', '#2ecc71', '#f39c12'
+                        ],
+                        borderWidth: 2,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+    }
+    
+    // Gráfico de Status
+    const ctxStatus = document.getElementById('statusChart');
+    if (ctxStatus) {
+        const dataStatus = <?= json_encode($stats['distribuicao_status'] ?? []) ?>;
+        console.log('Dados do gráfico de status:', dataStatus);
+        
+        if (dataStatus && dataStatus.length > 0) {
+            const labelsStatus = dataStatus.map(item => item.status_label);
+            const valuesStatus = dataStatus.map(item => parseInt(item.quantidade));
+            
+            new Chart(ctxStatus, {
+                type: 'bar',
+                data: {
+                    labels: labelsStatus,
+                    datasets: [{
+                        label: 'Quantidade',
+                        data: valuesStatus,
+                        backgroundColor: [
+                            '#27ae60', '#f39c12', '#e74c3c', '#95a5a6'
+                        ],
+                        borderWidth: 1,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    }
 });
 
-// Função para alternar status do cadastro
+// Função para alternar o status do cadastro
 function toggleCadastro() {
-    const isOpen = <?= $cadastro_aberto ? 'true' : 'false' ?>;
-    const newStatus = isOpen ? 'fechar' : 'abrir';
-    
-    if (confirm(`Tem certeza que deseja ${newStatus} o cadastro de fiscais?`)) {
+    if (confirm('Deseja alterar o status do cadastro?')) {
         fetch('toggle_cadastro.php', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
+                'Content-Type': 'application/x-www-form-urlencoded',
             },
-            body: JSON.stringify({
-                action: newStatus
-            })
+            body: 'action=toggle'
         })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
                 location.reload();
             } else {
-                alert('Erro ao alterar status do cadastro');
+                alert('Erro ao alterar status: ' + data.message);
             }
         })
         .catch(error => {

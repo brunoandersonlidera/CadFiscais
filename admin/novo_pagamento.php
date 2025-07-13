@@ -1,8 +1,8 @@
 <?php
 require_once '../config.php';
 
-// Verificar se é admin
-if (!isAdmin()) {
+// Verificar se tem permissão para pagamentos
+if (!isLoggedIn() || !temPermissaoPagamentos()) {
     redirect('../login.php');
 }
 

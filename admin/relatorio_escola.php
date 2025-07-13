@@ -14,7 +14,7 @@ $tipo = isset($_GET['tipo']) ? $_GET['tipo'] : '';
 
 // Validar parâmetros
 if (!$escola_id || !$tipo) {
-    showMessage('Parâmetros inválidos', 'error');
+    setMessage('Parâmetros inválidos', 'error');
     redirect('relatorios.php');
 }
 
@@ -25,12 +25,12 @@ try {
     $escola = $stmt->fetch();
     
     if (!$escola) {
-        showMessage('Escola não encontrada', 'error');
+        setMessage('Escola não encontrada', 'error');
         redirect('relatorios.php');
     }
 } catch (Exception $e) {
     logActivity('Erro ao buscar escola: ' . $e->getMessage(), 'ERROR');
-    showMessage('Erro ao buscar dados da escola', 'error');
+    setMessage('Erro ao buscar dados da escola', 'error');
     redirect('relatorios.php');
 }
 

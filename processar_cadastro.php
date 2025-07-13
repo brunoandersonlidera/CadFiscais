@@ -68,13 +68,24 @@ try {
         throw new Exception("E-mail inválido");
     }
     
-    // Validar CPF (formato básico)
+    // Validar CPF
     $cpf_limpo = preg_replace('/[^0-9]/', '', $cpf);
     if (strlen($cpf_limpo) !== 11) {
         throw new Exception("CPF inválido");
     }
     
+    // Validar CPF usando algoritmo oficial
+    if (!validateCPF($cpf_limpo)) {
+        throw new Exception("CPF inválido");
+    }
+    
     // Validar data de nascimento e idade
+    // Converter formato dd/mm/aaaa para aaaa-mm-dd se necessário
+    if (preg_match('/^\d{2}\/\d{2}\/\d{4}$/', $data_nascimento)) {
+        $data_parts = explode('/', $data_nascimento);
+        $data_nascimento = $data_parts[2] . '-' . $data_parts[1] . '-' . $data_parts[0];
+    }
+    
     $data_nasc = new DateTime($data_nascimento);
     $hoje = new DateTime();
     $idade = $hoje->diff($data_nasc)->y;
@@ -236,6 +247,50 @@ function insertFiscal($dados) {
         // Fallback para CSV
         return insertFiscalCSV($dados);
     }
+}
+
+// Função para validar CPF
+function validateCPF($cpf) {
+    // Remove caracteres não numéricos
+    $cpf = preg_replace('/[^0-9]/', '', $cpf);
+    
+    // Verifica se tem 11 dígitos
+    if (strlen($cpf) !== 11) {
+        return false;
+    }
+    
+    // Verifica se todos os dígitos são iguais
+    if (preg_match('/^(\d)\1+$/', $cpf)) {
+        return false;
+    }
+    
+    // Calcula primeiro dígito verificador
+    $sum = 0;
+    for ($i = 0; $i < 9; $i++) {
+        $sum += intval($cpf[$i]) * (10 - $i);
+    }
+    $remainder = ($sum * 10) % 11;
+    if ($remainder == 10 || $remainder == 11) {
+        $remainder = 0;
+    }
+    if ($remainder != intval($cpf[9])) {
+        return false;
+    }
+    
+    // Calcula segundo dígito verificador
+    $sum = 0;
+    for ($i = 0; $i < 10; $i++) {
+        $sum += intval($cpf[$i]) * (11 - $i);
+    }
+    $remainder = ($sum * 10) % 11;
+    if ($remainder == 10 || $remainder == 11) {
+        $remainder = 0;
+    }
+    if ($remainder != intval($cpf[10])) {
+        return false;
+    }
+    
+    return true;
 }
 
 function insertFiscalCSV($dados) {

@@ -1,8 +1,8 @@
 <?php
 require_once '../config.php';
 
-// Verificar se é admin
-if (!isAdmin()) {
+// Verificar se tem permissão para presença
+if (!isLoggedIn() || !temPermissaoPresenca()) {
     redirect('../login.php');
 }
 
@@ -357,19 +357,5 @@ function exportarPDF() {
 </style>
 
 <?php 
-// Funções auxiliares
-function formatPhone($phone) {
-    $phone = preg_replace('/\D/', '', $phone);
-    if (strlen($phone) === 11) {
-        return preg_replace('/(\d{2})(\d{5})(\d{4})/', '($1) $2-$3', $phone);
-    }
-    return $phone;
-}
-
-function formatCPF($cpf) {
-    $cpf = preg_replace('/\D/', '', $cpf);
-    return preg_replace('/(\d{3})(\d{3})(\d{3})(\d{2})/', '$1.$2.$3-$4', $cpf);
-}
-
 include '../includes/footer.php'; 
 ?> 

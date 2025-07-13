@@ -30,12 +30,12 @@ if ($concurso_id) {
 
 // Buscar fiscais aprovados
 try {
-    $sql = "SELECT f.*, 
+    $sql = "SELECT f.nome, f.cpf, f.celular, f.created_at,
                    CASE WHEN af.id IS NOT NULL THEN 'Alocado' ELSE 'Não Alocado' END as status_alocacao,
                    e.nome as escola_nome,
                    s.nome as sala_nome
             FROM fiscais f
-            LEFT JOIN alocacoes_fiscais af ON f.id = af.fiscal_id AND af.concurso_id = ?
+            LEFT JOIN alocacoes_fiscais af ON f.id = af.fiscal_id AND af.status = 'ativo'
             LEFT JOIN salas s ON af.sala_id = s.id
             LEFT JOIN escolas e ON s.escola_id = e.id
             WHERE f.status = 'aprovado'";
@@ -43,11 +43,11 @@ try {
     if ($concurso_id) {
         $sql .= " AND f.concurso_id = ?";
         $stmt = $db->prepare($sql);
-        $stmt->execute([$concurso_id, $concurso_id]);
+        $stmt->execute([$concurso_id]);
     } else {
         $sql .= " ORDER BY f.nome";
         $stmt = $db->prepare($sql);
-        $stmt->execute([null]);
+        $stmt->execute();
     }
     
     $fiscais = $stmt->fetchAll();
@@ -140,7 +140,7 @@ foreach ($fiscais as $fiscal) {
     
     $pdf->Cell(50, 6, substr($fiscal['nome'], 0, 25), 1, 0, 'L');
     $pdf->Cell(30, 6, $fiscal['cpf'], 1, 0, 'L');
-    $pdf->Cell(30, 6, $fiscal['telefone'], 1, 0, 'L');
+    $pdf->Cell(30, 6, $fiscal['celular'], 1, 0, 'L');
     $pdf->Cell(25, 6, $fiscal['status_alocacao'], 1, 0, 'L');
     $pdf->Cell(35, 6, substr($fiscal['escola_nome'] ?? '-', 0, 15), 1, 0, 'L');
     $pdf->Cell(25, 6, substr($fiscal['sala_nome'] ?? '-', 0, 12), 1, 1, 'L');

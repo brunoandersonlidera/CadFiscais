@@ -338,10 +338,33 @@ include '../includes/header.php';
                     </div>
                     
                     <div class="row">
-                        <div class="col-md-12">
+                        <div class="col-md-6">
                             <div class="mb-3">
                                 <label for="responsavel" class="form-label">Responsável</label>
                                 <input type="text" class="form-control" id="responsavel" name="responsavel">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="email" class="form-label">Email</label>
+                                <input type="email" class="form-control" id="email" name="email">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="coordenador_idh" class="form-label">Coordenador IDH</label>
+                                <input type="text" class="form-control" id="coordenador_idh" name="coordenador_idh" 
+                                       placeholder="Nome do coordenador do IDH">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="coordenador_comissao" class="form-label">Coordenador da Comissão</label>
+                                <input type="text" class="form-control" id="coordenador_comissao" name="coordenador_comissao" 
+                                       placeholder="Nome do coordenador da comissão">
                             </div>
                         </div>
                     </div>
@@ -520,14 +543,5 @@ function verSalas(escolaId) {
 </script>
 
 <?php 
-// Funções auxiliares
-function formatPhone($phone) {
-    $phone = preg_replace('/\D/', '', $phone);
-    if (strlen($phone) === 11) {
-        return preg_replace('/(\d{2})(\d{5})(\d{4})/', '($1) $2-$3', $phone);
-    }
-    return $phone;
-}
-
 include '../includes/footer.php'; 
 ?> 

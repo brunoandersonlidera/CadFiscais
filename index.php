@@ -34,7 +34,7 @@ if ($db) {
         $concursos = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
         // Buscar estatísticas gerais
-        $stmt = $db->query("SELECT COUNT(*) as total FROM fiscais WHERE status = 'ativo'");
+        $stmt = $db->query("SELECT COUNT(*) as total FROM fiscais WHERE status = 'aprovado'");
         $total_fiscais = $stmt->fetch(PDO::FETCH_ASSOC)['total'];
         
         $stmt = $db->query("SELECT COUNT(*) as total FROM concursos WHERE status = 'ativo'");
@@ -71,7 +71,8 @@ include 'includes/header.php';
     </div>
 </div>
 
-<!-- Cards de Estatísticas -->
+<?php if (isLoggedIn()): ?>
+<!-- Cards de Estatísticas - Apenas para usuários logados -->
 <div class="row mb-4">
     <div class="col-md-3">
         <div class="stats-card">
@@ -102,33 +103,80 @@ include 'includes/header.php';
     </div>
     
     <div class="col-md-3">
-        <div class="stats-card" style="background: linear-gradient(45deg, #f39c12, #e67e22);">
+        <div class="stats-card" style="background: linear-gradient(45deg, #007bff, #0056b3);">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <h3 class="mb-0">IDH</h3>
-                    <p class="mb-0">Instituto Dignidade Humana</p>
+                    <h3 class="mb-0">📚</h3>
+                    <p class="mb-0">Presença Treinamento</p>
                 </div>
                 <div class="icon">
-                    <i class="fas fa-building"></i>
+                    <i class="fas fa-graduation-cap"></i>
                 </div>
             </div>
         </div>
     </div>
     
     <div class="col-md-3">
-        <div class="stats-card" style="background: linear-gradient(45deg, #9b59b6, #8e44ad);">
+        <div class="stats-card" style="background: linear-gradient(45deg, #dc3545, #c82333);">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <h3 class="mb-0">Múltiplos</h3>
-                    <p class="mb-0">Cidades e Concursos</p>
+                    <h3 class="mb-0">📝</h3>
+                    <p class="mb-0">Presença Prova</p>
                 </div>
                 <div class="icon">
-                    <i class="fas fa-map-marker-alt"></i>
+                    <i class="fas fa-file-alt"></i>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<!-- Menu de Acesso Rápido - Apenas para usuários logados -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-tachometer-alt me-2"></i>
+                    Acesso Rápido
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3 mb-3">
+                        <a href="presenca_treinamento.php" class="btn btn-outline-primary w-100 h-100 d-flex flex-column align-items-center justify-content-center" style="min-height: 100px;">
+                            <i class="fas fa-graduation-cap fa-2x mb-2"></i>
+                            <strong>Presença no Treinamento</strong>
+                            <small class="text-muted">Controle de presença</small>
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <a href="presenca_prova.php" class="btn btn-outline-danger w-100 h-100 d-flex flex-column align-items-center justify-content-center" style="min-height: 100px;">
+                            <i class="fas fa-file-alt fa-2x mb-2"></i>
+                            <strong>Presença na Prova</strong>
+                            <small class="text-muted">Controle de presença</small>
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <a href="pagamentos.php" class="btn btn-outline-success w-100 h-100 d-flex flex-column align-items-center justify-content-center" style="min-height: 100px;">
+                            <i class="fas fa-money-bill-wave fa-2x mb-2"></i>
+                            <strong>Controle de Pagamentos</strong>
+                            <small class="text-muted">Gestão financeira</small>
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <a href="admin/dashboard.php" class="btn btn-outline-info w-100 h-100 d-flex flex-column align-items-center justify-content-center" style="min-height: 100px;">
+                            <i class="fas fa-cogs fa-2x mb-2"></i>
+                            <strong>Painel Administrativo</strong>
+                            <small class="text-muted">Configurações</small>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
 
 <!-- Concursos Ativos -->
 <div class="row">

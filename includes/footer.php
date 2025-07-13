@@ -30,12 +30,20 @@
     <script>
         // Função para mostrar loading
         function showLoading() {
-            document.getElementById('loading').style.display = 'flex';
+            const loadingElement = document.getElementById('loading');
+            if (loadingElement) {
+                loadingElement.classList.remove('d-none');
+                loadingElement.style.display = 'flex';
+            }
         }
 
         // Função para esconder loading
         function hideLoading() {
-            document.getElementById('loading').style.display = 'none';
+            const loadingElement = document.getElementById('loading');
+            if (loadingElement) {
+                loadingElement.classList.add('d-none');
+                loadingElement.style.display = 'none';
+            }
         }
 
         // Função para formatar CPF
@@ -133,10 +141,7 @@
                 $('.alert').fadeOut();
             }, 5000);
 
-            // Form validation
-            $('form').on('submit', function() {
-                showLoading();
-            });
+            // Form validation - removido showLoading automático para evitar conflitos
         });
 
         // Função para exportar dados

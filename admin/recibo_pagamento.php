@@ -10,7 +10,7 @@ $pagamento_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 $db = getDB();
 
 if (!$pagamento_id) {
-    showMessage('ID do pagamento não fornecido', 'error');
+    setMessage('ID do pagamento não fornecido', 'error');
     redirect('lista_pagamentos.php');
 }
 
@@ -28,12 +28,12 @@ try {
     $pagamento = $stmt->fetch();
     
     if (!$pagamento) {
-        showMessage('Pagamento não encontrado', 'error');
+        setMessage('Pagamento não encontrado', 'error');
         redirect('lista_pagamentos.php');
     }
 } catch (Exception $e) {
     logActivity('Erro ao buscar pagamento: ' . $e->getMessage(), 'ERROR');
-    showMessage('Erro ao buscar pagamento', 'error');
+    setMessage('Erro ao buscar pagamento', 'error');
     redirect('lista_pagamentos.php');
 }
 
@@ -215,15 +215,10 @@ function imprimirRecibo() {
 
 <?php 
 // Funções auxiliares
-function formatCPF($cpf) {
-    $cpf = preg_replace('/\D/', '', $cpf);
-    return preg_replace('/(\d{3})(\d{3})(\d{3})(\d{2})/', '$1.$2.$3-$4', $cpf);
+)(\d{3})(\d{3})(\d{2})/', '$1.$2.$3-$4', $cpf);
 }
 
-function formatPhone($phone) {
-    $phone = preg_replace('/\D/', '', $phone);
-    if (strlen($phone) === 11) {
-        return preg_replace('/(\d{2})(\d{5})(\d{4})/', '($1) $2-$3', $phone);
+)(\d{5})(\d{4})/', '($1) $2-$3', $phone);
     }
     return $phone;
 }

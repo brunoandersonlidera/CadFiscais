@@ -404,15 +404,10 @@ function exportarPDF() {
 
 <?php 
 // Funções auxiliares
-function formatCPF($cpf) {
-    $cpf = preg_replace('/\D/', '', $cpf);
-    return preg_replace('/(\d{3})(\d{3})(\d{3})(\d{2})/', '$1.$2.$3-$4', $cpf);
+)(\d{3})(\d{3})(\d{2})/', '$1.$2.$3-$4', $cpf);
 }
 
-function formatPhone($phone) {
-    $phone = preg_replace('/\D/', '', $phone);
-    if (strlen($phone) === 11) {
-        return preg_replace('/(\d{2})(\d{5})(\d{4})/', '($1) $2-$3', $phone);
+)(\d{5})(\d{4})/', '($1) $2-$3', $phone);
     }
     return $phone;
 }

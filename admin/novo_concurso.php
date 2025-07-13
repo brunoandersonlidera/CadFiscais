@@ -14,6 +14,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Validar dados
         $titulo = trim($_POST['titulo'] ?? '');
         $orgao = trim($_POST['orgao'] ?? '');
+        $numero_concurso = trim($_POST['numero_concurso'] ?? '');
+        $ano_concurso = (int)($_POST['ano_concurso'] ?? date('Y'));
         $cidade = trim($_POST['cidade'] ?? '');
         $estado = trim($_POST['estado'] ?? '');
         $data_prova = $_POST['data_prova'] ?? '';
@@ -102,15 +104,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
                 $stmt = $db->prepare("
                     INSERT INTO concursos (
-                        titulo, orgao, cidade, estado, data_prova, horario_inicio, 
+                        titulo, orgao, numero_concurso, ano_concurso, cidade, estado, data_prova, horario_inicio, 
                         horario_fim, valor_pagamento, vagas_disponiveis, status, 
                         descricao, termos_aceite, logo_orgao
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ");
                 
                 $stmt->execute([
                     $titulo,
                     $orgao,
+                    $numero_concurso,
+                    $ano_concurso,
                     $cidade,
                     $estado,
                     $data_prova,
@@ -238,6 +242,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 <input type="file" class="form-control" id="logo_orgao" name="logo_orgao" 
                                        accept="image/*">
                                 <div class="form-text">Formatos: JPG, PNG, GIF. Máximo 5MB.</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="numero_concurso" class="form-label">
+                                    <i class="fas fa-hashtag me-1"></i>Número do Concurso
+                                </label>
+                                <input type="text" class="form-control" id="numero_concurso" name="numero_concurso" 
+                                       value="<?= htmlspecialchars($_POST['numero_concurso'] ?? '') ?>" 
+                                       placeholder="Ex: 001/2024">
+                                <div class="form-text">Número oficial do concurso</div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="ano_concurso" class="form-label">
+                                    <i class="fas fa-calendar-alt me-1"></i>Ano do Concurso
+                                </label>
+                                <input type="number" class="form-control" id="ano_concurso" name="ano_concurso" 
+                                       value="<?= htmlspecialchars($_POST['ano_concurso'] ?? date('Y')) ?>" 
+                                       min="2000" max="2030">
+                                <div class="form-text">Ano do concurso</div>
                             </div>
                         </div>
                     </div>

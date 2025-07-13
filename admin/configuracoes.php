@@ -168,6 +168,22 @@ try {
                         </div>
                     </form>
                 </div>
+                
+                <!-- Gerador de Dados Fictícios -->
+                <div class="card mt-4">
+                    <h2>🧪 Gerador de Dados Fictícios</h2>
+                    <p>Esta ferramenta permite gerar dados fictícios para testes do sistema.</p>
+                    
+                    <div class="alert alert-warning">
+                        <strong>⚠️ Atenção:</strong> Os dados gerados são fictícios e destinados apenas para testes.
+                    </div>
+                    
+                    <a href="../gerador_dados/" class="btn btn-warning">
+                        <i class="fas fa-database"></i> Acessar Gerador de Dados
+                    </a>
+                </div>
+                    </form>
+                </div>
             </div>
             
             <div class="col-md-4">

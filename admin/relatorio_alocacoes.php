@@ -431,9 +431,7 @@ function exportarExcel() {
 
 <?php 
 // Funções auxiliares
-function formatCPF($cpf) {
-    $cpf = preg_replace('/\D/', '', $cpf);
-    return preg_replace('/(\d{3})(\d{3})(\d{3})(\d{2})/', '$1.$2.$3-$4', $cpf);
+)(\d{3})(\d{3})(\d{2})/', '$1.$2.$3-$4', $cpf);
 }
 
 function getTipoAlocacaoColor($tipo) {

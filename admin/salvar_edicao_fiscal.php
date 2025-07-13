@@ -1,20 +1,28 @@
 <?php
 require_once '../config.php';
 
+// Log de debug
+logActivity('Iniciando salvamento de edição de fiscal', 'DEBUG');
+
 // Verificar se é admin
 if (!isAdmin()) {
+    logActivity('Tentativa de acesso sem autenticação', 'WARNING');
     redirect('../login.php');
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    logActivity('Método não permitido: ' . $_SERVER['REQUEST_METHOD'], 'WARNING');
     redirect('fiscais.php');
 }
 
 $fiscal_id = isset($_POST['fiscal_id']) ? (int)$_POST['fiscal_id'] : 0;
 $db = getDB();
 
+logActivity('Fiscal ID recebido: ' . $fiscal_id, 'DEBUG');
+
 if (!$fiscal_id) {
-    showMessage('ID do fiscal não fornecido', 'error');
+    logActivity('ID do fiscal não fornecido', 'ERROR');
+    setMessage('ID do fiscal não fornecido', 'error');
     redirect('fiscais.php');
 }
 
@@ -30,7 +38,7 @@ try {
     }
     
     if (!empty($dados_faltantes)) {
-        showMessage('Campos obrigatórios não preenchidos: ' . implode(', ', $dados_faltantes), 'error');
+        setMessage('Campos obrigatórios não preenchidos: ' . implode(', ', $dados_faltantes), 'error');
         redirect("editar_fiscal.php?id=$fiscal_id");
     }
     
@@ -54,16 +62,21 @@ try {
         'updated_at' => date('Y-m-d H:i:s')
     ];
     
+    logActivity('Dados preparados: ' . json_encode($dados), 'DEBUG');
+    
     // Se aceite dos termos foi marcado, registrar data
     if ($dados['aceite_termos'] && !isset($_POST['data_aceite_termos'])) {
         $dados['data_aceite_termos'] = date('Y-m-d H:i:s');
     }
     
+    logActivity('Iniciando verificações de CPF e email', 'DEBUG');
+    
     // Verificar se CPF já existe (exceto para o próprio fiscal)
     $stmt = $db->prepare("SELECT id FROM fiscais WHERE cpf = ? AND id != ?");
     $stmt->execute([$dados['cpf'], $fiscal_id]);
     if ($stmt->fetch()) {
-        showMessage('CPF já cadastrado para outro fiscal', 'error');
+        logActivity('CPF já cadastrado para outro fiscal', 'ERROR');
+        setMessage('CPF já cadastrado para outro fiscal', 'error');
         redirect("editar_fiscal.php?id=$fiscal_id");
     }
     
@@ -71,9 +84,14 @@ try {
     $stmt = $db->prepare("SELECT id FROM fiscais WHERE email = ? AND id != ?");
     $stmt->execute([$dados['email'], $fiscal_id]);
     if ($stmt->fetch()) {
-        showMessage('E-mail já cadastrado para outro fiscal', 'error');
+        logActivity('Email já cadastrado para outro fiscal', 'ERROR');
+        setMessage('E-mail já cadastrado para outro fiscal', 'error');
         redirect("editar_fiscal.php?id=$fiscal_id");
     }
+    
+    logActivity('Verificações de CPF e email concluídas', 'DEBUG');
+    
+    logActivity('Iniciando construção do SQL UPDATE', 'DEBUG');
     
     // Atualizar fiscal
     $sql = "
@@ -82,6 +100,7 @@ try {
             cpf = ?, data_nascimento = ?, endereco = ?, melhor_horario = ?, 
             whatsapp = ?, observacoes = ?, concurso_id = ?, status = ?, 
             status_contato = ?, aceite_termos = ?, updated_at = ?
+        WHERE id = ?
     ";
     
     $params = [
@@ -89,36 +108,39 @@ try {
         $dados['genero'], $dados['cpf'], $dados['data_nascimento'], 
         $dados['endereco'], $dados['melhor_horario'], $dados['whatsapp'], 
         $dados['observacoes'], $dados['concurso_id'], $dados['status'], 
-        $dados['status_contato'], $dados['aceite_termos'], $dados['updated_at']
+        $dados['status_contato'], $dados['aceite_termos'], $dados['updated_at'],
+        $fiscal_id
     ];
     
     // Adicionar data_aceite_termos se necessário
     if (isset($dados['data_aceite_termos'])) {
-        $sql .= ", data_aceite_termos = ?";
-        $params[] = $dados['data_aceite_termos'];
+        $sql = str_replace('updated_at = ?', 'updated_at = ?, data_aceite_termos = ?', $sql);
+        array_splice($params, -1, 0, [$dados['data_aceite_termos']]);
     }
-    
-    $sql .= " WHERE id = ?";
-    $params[] = $fiscal_id;
     
     $stmt = $db->prepare($sql);
     $resultado = $stmt->execute($params);
+    
+    logActivity('SQL executado: ' . $sql, 'DEBUG');
+    logActivity('Parâmetros: ' . json_encode($params), 'DEBUG');
+    logActivity('Resultado da execução: ' . ($resultado ? 'SUCESSO' : 'FALHA'), 'DEBUG');
     
     if ($resultado) {
         // Log da atividade
         $usuario = $_SESSION['usuario']['nome'] ?? 'Admin';
         logActivity("Fiscal ID $fiscal_id editado por $usuario", 'INFO');
         
-        showMessage('Fiscal atualizado com sucesso!', 'success');
+        setMessage('Fiscal atualizado com sucesso!', 'success');
         redirect('fiscais.php');
     } else {
-        showMessage('Erro ao atualizar fiscal', 'error');
+        logActivity('Erro ao executar UPDATE: ' . implode(', ', $stmt->errorInfo()), 'ERROR');
+        setMessage('Erro ao atualizar fiscal', 'error');
         redirect("editar_fiscal.php?id=$fiscal_id");
     }
     
 } catch (Exception $e) {
     logActivity('Erro ao editar fiscal: ' . $e->getMessage(), 'ERROR');
-    showMessage('Erro interno do sistema', 'error');
+    setMessage('Erro interno do sistema', 'error');
     redirect("editar_fiscal.php?id=$fiscal_id");
 }
 ?> 

@@ -225,7 +225,7 @@
                             <li><a class="dropdown-item" href="<?= $isAdmin ? 'salas.php' : 'admin/salas.php' ?>">
                                 <i class="fas fa-door-open me-2"></i>Gerenciar Salas
                             </a></li>
-                            <li><a class="dropdown-item" href="<?= $isAdmin ? 'alocar_fiscal.php' : 'admin/alocar_fiscal.php' ?>">
+                            <li><a class="dropdown-item" href="<?= $isAdmin ? 'alocar_fiscais.php' : 'admin/alocar_fiscais.php' ?>">
                                 <i class="fas fa-map-marker-alt me-2"></i>Alocar Fiscais
                             </a></li>
                         </ul>
@@ -287,6 +287,14 @@
                             <li><a class="dropdown-item" href="<?= $isAdmin ? 'configuracoes.php' : 'admin/configuracoes.php' ?>">
                                 <i class="fas fa-cog me-2"></i>Configurações
                             </a></li>
+                            <?php if (isAdmin()): ?>
+                            <li><a class="dropdown-item" href="<?= $isAdmin ? 'usuarios.php' : 'admin/usuarios.php' ?>">
+                                <i class="fas fa-users-cog me-2"></i>Gerenciar Usuários
+                            </a></li>
+                            <li><a class="dropdown-item" href="<?= $isAdmin ? 'tipos_usuario.php' : 'admin/tipos_usuario.php' ?>">
+                                <i class="fas fa-user-tag me-2"></i>Tipos de Usuário
+                            </a></li>
+                            <?php endif; ?>
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="<?= $isAdmin ? 'logout.php' : 'admin/logout.php' ?>">
                                 <i class="fas fa-sign-out-alt me-2"></i>Sair
@@ -304,6 +312,18 @@
             </div>
         </div>
     </nav>
+
+    <!-- Loading Overlay -->
+    <div id="loading" class="position-fixed top-0 start-0 w-100 h-100 d-none" style="background: rgba(0,0,0,0.5); z-index: 9999;">
+        <div class="d-flex justify-content-center align-items-center h-100">
+            <div class="text-center text-white">
+                <div class="spinner-border" role="status">
+                    <span class="visually-hidden">Carregando...</span>
+                </div>
+                <div class="mt-2">Carregando...</div>
+            </div>
+        </div>
+    </div>
 
     <!-- Container Principal -->
     <div class="container-fluid py-4">

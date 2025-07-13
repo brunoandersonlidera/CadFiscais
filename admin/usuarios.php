@@ -11,9 +11,10 @@ $usuarios = [];
 
 try {
     $stmt = $db->query("
-        SELECT id, nome, email, tipo_usuario, status, created_at, last_login
-        FROM usuarios 
-        ORDER BY created_at DESC
+        SELECT u.id, u.nome, u.email, u.status, u.created_at, u.ultimo_login, t.nome as tipo_nome
+        FROM usuarios u 
+        JOIN tipos_usuario t ON u.tipo_usuario_id = t.id 
+        ORDER BY u.created_at DESC
     ");
     $usuarios = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (Exception $e) {
@@ -111,8 +112,8 @@ include '../includes/header.php';
                                 <td><?= htmlspecialchars($usuario['nome']) ?></td>
                                 <td><?= htmlspecialchars($usuario['email']) ?></td>
                                 <td>
-                                    <span class="badge bg-<?= $usuario['tipo_usuario'] == 'admin' ? 'danger' : 'info' ?>">
-                                        <?= ucfirst($usuario['tipo_usuario']) ?>
+                                    <span class="badge bg-<?= $usuario['tipo_nome'] == 'Administrador' ? 'danger' : ($usuario['tipo_nome'] == 'Coordenador' ? 'warning' : 'info') ?>">
+                                        <?= htmlspecialchars($usuario['tipo_nome']) ?>
                                     </span>
                                 </td>
                                 <td>
@@ -120,7 +121,7 @@ include '../includes/header.php';
                                         <?= ucfirst($usuario['status']) ?>
                                     </span>
                                 </td>
-                                <td><?= $usuario['last_login'] ? date('d/m/Y H:i', strtotime($usuario['last_login'])) : 'Nunca' ?></td>
+                                <td><?= $usuario['ultimo_login'] ? date('d/m/Y H:i', strtotime($usuario['ultimo_login'])) : 'Nunca' ?></td>
                                 <td><?= date('d/m/Y H:i', strtotime($usuario['created_at'])) ?></td>
                                 <td>
                                     <div class="btn-group btn-group-sm">

@@ -11,7 +11,7 @@ $fiscais = [];
 
 try {
     $stmt = $db->query("
-        SELECT f.id, f.nome, f.email, f.celular, f.cpf, f.data_nascimento, 
+        SELECT f.id, f.nome, f.email, f.celular, f.whatsapp, f.cpf, f.data_nascimento, 
                f.status, f.created_at, f.observacoes, f.concurso_id,
                c.titulo as concurso_titulo,
                TIMESTAMPDIFF(YEAR, f.data_nascimento, CURDATE()) as idade
@@ -159,6 +159,11 @@ include '../includes/header.php';
                                                 onclick="alocarFiscal(<?= $fiscal['id'] ?>)">
                                             <i class="fas fa-map-marker-alt"></i>
                                         </button>
+                                        <button type="button" class="btn btn-outline-info" 
+                                                onclick="abrirWhatsApp('<?= $fiscal['whatsapp'] ?? $fiscal['celular'] ?>', '<?= htmlspecialchars($fiscal['nome']) ?>')"
+                                                title="Abrir WhatsApp">
+                                            <i class="fab fa-whatsapp"></i>
+                                        </button>
                                         <button type="button" class="btn btn-outline-danger" 
                                                 onclick="deleteFiscal(<?= $fiscal['id'] ?>)">
                                             <i class="fas fa-trash"></i>
@@ -243,15 +248,145 @@ function verDetalhes(id) {
         .then(response => response.json())
         .then(data => {
             hideLoading();
-            if (data.success) {
-                document.getElementById('detalhesContent').innerHTML = data.html;
-                new bootstrap.Modal(document.getElementById('detalhesModal')).show();
-            } else {
-                showMessage(data.message, 'error');
+            if (data.error) {
+                showMessage(data.error, 'error');
+                return;
             }
+            
+            // Gerar HTML com os dados
+            let html = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <h5>Dados Pessoais</h5>
+                        <p><strong>Nome:</strong> ${data.fiscal.nome}</p>
+                        <p><strong>Email:</strong> ${data.fiscal.email}</p>
+                        <p><strong>CPF:</strong> ${formatCPF(data.fiscal.cpf)}</p>
+                        <p><strong>Celular:</strong> ${formatPhone(data.fiscal.celular)}</p>
+                        <p><strong>WhatsApp:</strong> ${data.fiscal.whatsapp ? formatPhone(data.fiscal.whatsapp) : 'Não informado'}</p>
+                        <p><strong>Data de Nascimento:</strong> ${new Date(data.fiscal.data_nascimento).toLocaleDateString('pt-BR')}</p>
+                        <p><strong>Gênero:</strong> ${data.fiscal.genero === 'M' ? 'Masculino' : 'Feminino'}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h5>Informações do Concurso</h5>
+                        <p><strong>Concurso:</strong> ${data.fiscal.concurso_nome || 'Não informado'}</p>
+                        <p><strong>Status:</strong> <span class="badge bg-${getStatusColor(data.fiscal.status)}">${data.fiscal.status}</span></p>
+                        <p><strong>Status do Contato:</strong> ${data.fiscal.status_contato || 'Não informado'}</p>
+                        <p><strong>Melhor Horário:</strong> ${data.fiscal.melhor_horario || 'Não informado'}</p>
+                        <p><strong>Aceite dos Termos:</strong> ${data.fiscal.aceite_termos ? 'Sim' : 'Não'}</p>
+                        <p><strong>Data de Cadastro:</strong> ${new Date(data.fiscal.created_at).toLocaleDateString('pt-BR')}</p>
+                    </div>
+                </div>
+                
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <h5>Endereço</h5>
+                        <p>${data.fiscal.endereco || 'Não informado'}</p>
+                    </div>
+                </div>
+                
+                ${data.fiscal.observacoes ? `
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <h5>Observações</h5>
+                        <p>${data.fiscal.observacoes}</p>
+                    </div>
+                </div>
+                ` : ''}
+                
+                ${data.alocacoes.length > 0 ? `
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <h5>Alocações</h5>
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Escola</th>
+                                        <th>Sala</th>
+                                        <th>Data</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${data.alocacoes.map(alocacao => `
+                                        <tr>
+                                            <td>${alocacao.escola_nome || 'N/A'}</td>
+                                            <td>${alocacao.sala_nome || 'N/A'}</td>
+                                            <td>${new Date(alocacao.data_alocacao).toLocaleDateString('pt-BR')}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                ` : ''}
+                
+                ${data.presencas.length > 0 ? `
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <h5>Presença</h5>
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Concurso</th>
+                                        <th>Data</th>
+                                        <th>Presente</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${data.presencas.map(presenca => `
+                                        <tr>
+                                            <td>${presenca.concurso_nome || 'N/A'}</td>
+                                            <td>${new Date(presenca.data).toLocaleDateString('pt-BR')}</td>
+                                            <td><span class="badge bg-${presenca.presente ? 'success' : 'danger'}">${presenca.presente ? 'Sim' : 'Não'}</span></td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                ` : ''}
+                
+                ${data.pagamentos.length > 0 ? `
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <h5>Pagamentos</h5>
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Concurso</th>
+                                        <th>Data</th>
+                                        <th>Valor</th>
+                                        <th>Pago</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${data.pagamentos.map(pagamento => `
+                                        <tr>
+                                            <td>${pagamento.concurso_nome || 'N/A'}</td>
+                                            <td>${new Date(pagamento.data_pagamento).toLocaleDateString('pt-BR')}</td>
+                                            <td>R$ ${parseFloat(pagamento.valor).toFixed(2).replace('.', ',')}</td>
+                                            <td><span class="badge bg-${pagamento.pago ? 'success' : 'warning'}">${pagamento.pago ? 'Sim' : 'Não'}</span></td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                ` : ''}
+            `;
+            
+            document.getElementById('detalhesContent').innerHTML = html;
+            document.getElementById('detalhesModal').setAttribute('data-fiscal-id', id);
+            new bootstrap.Modal(document.getElementById('detalhesModal')).show();
         })
         .catch(error => {
             hideLoading();
+            console.error('Erro:', error);
             showMessage('Erro ao carregar detalhes', 'error');
         });
 }
@@ -311,32 +446,10 @@ function changeStatus(id, status) {
 }
 
 function exportData(format) {
-    showLoading();
-    
-    fetch('export.php', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ format: format })
-    })
-    .then(response => response.json())
-    .then(data => {
-        hideLoading();
-        if (data.success) {
-            // Criar link para download
-            const link = document.createElement('a');
-            link.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(data.data);
-            link.download = `fiscais_${new Date().toISOString().split('T')[0]}.${format}`;
-            link.click();
-        } else {
-            showMessage(data.message, 'error');
-        }
-    })
-    .catch(error => {
-        hideLoading();
-        showMessage('Erro ao exportar dados', 'error');
-    });
+    // Versão simplificada - download direto
+    const url = `export_direto.php?format=${format}`;
+    console.log('Exportando:', url);
+    window.open(url, '_blank');
 }
 
 // Funções auxiliares
@@ -353,6 +466,29 @@ function formatCPF(cpf) {
     return cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
 }
 
+function abrirWhatsApp(telefone, nome) {
+    // Limpar o telefone (remover caracteres especiais)
+    let numero = telefone.replace(/\D/g, '');
+    
+    // Adicionar código do país se não tiver
+    if (numero.length === 11 && numero.startsWith('0')) {
+        numero = '55' + numero.substring(1);
+    } else if (numero.length === 11) {
+        numero = '55' + numero;
+    } else if (numero.length === 10) {
+        numero = '5511' + numero;
+    }
+    
+    // Criar mensagem padrão
+    const mensagem = `Olá ${nome}! Sou do Instituto Dignidade Humana (IDH) e gostaria de falar sobre o concurso.`;
+    
+    // URL do WhatsApp
+    const url = `https://wa.me/${numero}?text=${encodeURIComponent(mensagem)}`;
+    
+    // Abrir em nova aba
+    window.open(url, '_blank');
+}
+
 function getStatusColor(status) {
     switch (status) {
         case 'aprovado': return 'success';
@@ -366,19 +502,6 @@ function getStatusColor(status) {
 
 <?php 
 // Funções auxiliares
-function formatPhone($phone) {
-    $phone = preg_replace('/\D/', '', $phone);
-    if (strlen($phone) === 11) {
-        return preg_replace('/(\d{2})(\d{5})(\d{4})/', '($1) $2-$3', $phone);
-    }
-    return $phone;
-}
-
-function formatCPF($cpf) {
-    $cpf = preg_replace('/\D/', '', $cpf);
-    return preg_replace('/(\d{3})(\d{3})(\d{3})(\d{2})/', '$1.$2.$3-$4', $cpf);
-}
-
 function getStatusColor($status) {
     switch ($status) {
         case 'aprovado': return 'success';

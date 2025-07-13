@@ -1,8 +1,8 @@
 <?php
 require_once '../config.php';
 
-// Verificar se é admin
-if (!isAdmin()) {
+// Verificar se tem permissão para pagamentos
+if (!isLoggedIn() || !temPermissaoPagamentos()) {
     redirect('../login.php');
 }
 
@@ -24,19 +24,19 @@ $status_pagamento = isset($_POST['status_pagamento']) ? $_POST['status_pagamento
 
 // Validar dados obrigatórios
 if (!$concurso_id || !$fiscal_id || !$valor || !$forma_pagamento || !$data_pagamento || !$status_pagamento) {
-    showMessage('Todos os campos obrigatórios devem ser preenchidos', 'error');
+    setMessage('Todos os campos obrigatórios devem ser preenchidos', 'error');
     redirect('novo_pagamento.php');
 }
 
 // Validar valor
 if ($valor <= 0) {
-    showMessage('O valor deve ser maior que zero', 'error');
+    setMessage('O valor deve ser maior que zero', 'error');
     redirect('novo_pagamento.php');
 }
 
 // Validar data
 if (!strtotime($data_pagamento)) {
-    showMessage('Data de pagamento inválida', 'error');
+    setMessage('Data de pagamento inválida', 'error');
     redirect('novo_pagamento.php');
 }
 
@@ -45,7 +45,7 @@ try {
     $stmt = $db->prepare("SELECT id FROM concursos WHERE id = ?");
     $stmt->execute([$concurso_id]);
     if (!$stmt->fetch()) {
-        showMessage('Concurso não encontrado', 'error');
+        setMessage('Concurso não encontrado', 'error');
         redirect('novo_pagamento.php');
     }
     
@@ -54,7 +54,7 @@ try {
     $stmt->execute([$fiscal_id]);
     $fiscal = $stmt->fetch();
     if (!$fiscal) {
-        showMessage('Fiscal não encontrado ou não aprovado', 'error');
+        setMessage('Fiscal não encontrado ou não aprovado', 'error');
         redirect('novo_pagamento.php');
     }
     
@@ -62,7 +62,7 @@ try {
     $stmt = $db->prepare("SELECT id FROM pagamentos WHERE fiscal_id = ? AND concurso_id = ?");
     $stmt->execute([$fiscal_id, $concurso_id]);
     if ($stmt->fetch()) {
-        showMessage('Já existe um pagamento registrado para este fiscal neste concurso', 'error');
+        setMessage('Já existe um pagamento registrado para este fiscal neste concurso', 'error');
         redirect('novo_pagamento.php');
     }
     
@@ -88,16 +88,16 @@ try {
         // Log da atividade
         logActivity("Novo pagamento registrado: Fiscal {$fiscal['nome']} - R$ " . number_format($valor, 2, ',', '.') . " - {$forma_pagamento}", 'INFO');
         
-        showMessage('Pagamento registrado com sucesso!', 'success');
+        setMessage('Pagamento registrado com sucesso!', 'success');
         redirect('lista_pagamentos.php');
     } else {
-        showMessage('Erro ao registrar pagamento', 'error');
+        setMessage('Erro ao registrar pagamento', 'error');
         redirect('novo_pagamento.php');
     }
     
 } catch (Exception $e) {
     logActivity('Erro ao salvar pagamento: ' . $e->getMessage(), 'ERROR');
-    showMessage('Erro interno do sistema. Tente novamente.', 'error');
+    setMessage('Erro interno do sistema. Tente novamente.', 'error');
     redirect('novo_pagamento.php');
 }
 ?> 

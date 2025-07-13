@@ -14,7 +14,7 @@ $tipo = isset($_GET['tipo']) ? $_GET['tipo'] : '';
 
 // Validar parâmetros
 if (!$concurso_id || !$tipo) {
-    showMessage('Parâmetros inválidos', 'error');
+    setMessage('Parâmetros inválidos', 'error');
     redirect('relatorios.php');
 }
 
@@ -25,12 +25,12 @@ try {
     $concurso = $stmt->fetch();
     
     if (!$concurso) {
-        showMessage('Concurso não encontrado', 'error');
+        setMessage('Concurso não encontrado', 'error');
         redirect('relatorios.php');
     }
 } catch (Exception $e) {
     logActivity('Erro ao buscar concurso: ' . $e->getMessage(), 'ERROR');
-    showMessage('Erro ao buscar dados do concurso', 'error');
+    setMessage('Erro ao buscar dados do concurso', 'error');
     redirect('relatorios.php');
 }
 

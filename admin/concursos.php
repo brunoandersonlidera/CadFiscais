@@ -63,7 +63,7 @@ try {
             COUNT(f.id) as fiscais_cadastrados,
             (c.vagas_disponiveis - COUNT(f.id)) as vagas_restantes
         FROM concursos c
-        LEFT JOIN fiscais f ON c.id = f.concurso_id AND f.status = 'ativo'
+        LEFT JOIN fiscais f ON c.id = f.concurso_id AND f.status = 'aprovado'
         GROUP BY c.id
         ORDER BY c.created_at DESC
     ");

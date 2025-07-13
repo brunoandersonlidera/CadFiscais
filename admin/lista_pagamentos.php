@@ -1,8 +1,8 @@
 <?php
 require_once '../config.php';
 
-// Verificar se é admin
-if (!isAdmin()) {
+// Verificar se tem permissão para pagamentos
+if (!isLoggedIn() || !temPermissaoPagamentos()) {
     redirect('../login.php');
 }
 
@@ -352,7 +352,6 @@ function exportarExcel() {
 <?php 
 // Funções auxiliares
 function formatCPF($cpf) {
-    $cpf = preg_replace('/\D/', '', $cpf);
     return preg_replace('/(\d{3})(\d{3})(\d{3})(\d{2})/', '$1.$2.$3-$4', $cpf);
 }
 

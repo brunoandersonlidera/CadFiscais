@@ -10,7 +10,7 @@ $fiscal_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 $db = getDB();
 
 if (!$fiscal_id) {
-    showMessage('ID do fiscal não fornecido', 'error');
+    setMessage('ID do fiscal não fornecido', 'error');
     redirect('fiscais.php');
 }
 
@@ -26,12 +26,12 @@ try {
     $fiscal = $stmt->fetch();
     
     if (!$fiscal) {
-        showMessage('Fiscal não encontrado', 'error');
+        setMessage('Fiscal não encontrado', 'error');
         redirect('fiscais.php');
     }
 } catch (Exception $e) {
     logActivity('Erro ao buscar fiscal: ' . $e->getMessage(), 'ERROR');
-    showMessage('Erro ao buscar fiscal', 'error');
+    setMessage('Erro ao buscar fiscal', 'error');
     redirect('fiscais.php');
 }
 
@@ -208,8 +208,8 @@ include '../includes/header.php';
                                 <label for="status_contato" class="form-label">Status do Contato</label>
                                 <select class="form-select" id="status_contato" name="status_contato">
                                     <option value="nao_contatado" <?= $fiscal['status_contato'] == 'nao_contatado' ? 'selected' : '' ?>>Não Contatado</option>
-                                    <option value="contatado" <?= $fiscal['status_contato'] == 'contatado' ? 'selected' : '' ?>>Contatado</option>
                                     <option value="confirmado" <?= $fiscal['status_contato'] == 'confirmado' ? 'selected' : '' ?>>Confirmado</option>
+                                    <option value="nao_respondeu" <?= $fiscal['status_contato'] == 'nao_respondeu' ? 'selected' : '' ?>>Não Respondeu</option>
                                     <option value="desistiu" <?= $fiscal['status_contato'] == 'desistiu' ? 'selected' : '' ?>>Desistiu</option>
                                 </select>
                             </div>
@@ -328,7 +328,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // Validação do formulário
     const form = document.getElementById('formEditarFiscal');
     if (form) {
+        console.log('Formulário encontrado:', form);
+        
         form.addEventListener('submit', function(e) {
+            console.log('Formulário sendo enviado...');
+            
             const camposObrigatorios = ['nome', 'email', 'ddi', 'celular', 'genero', 'cpf', 'data_nascimento', 'endereco', 'concurso_id', 'status'];
             
             let camposVazios = [];
@@ -340,14 +344,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
             
+            console.log('Campos vazios:', camposVazios);
+            
             if (camposVazios.length > 0) {
                 e.preventDefault();
+                console.log('Formulário bloqueado - campos vazios');
                 showMessage('Por favor, preencha todos os campos obrigatórios:\n\n' + camposVazios.join('\n'), 'error');
                 return false;
             }
             
-            showLoading();
+            console.log('Formulário enviado com sucesso');
         });
+    } else {
+        console.log('Formulário NÃO encontrado');
     }
 });
 </script>

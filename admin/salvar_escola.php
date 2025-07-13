@@ -19,6 +19,8 @@ try {
     $telefone = trim($_POST['telefone']);
     $email = trim($_POST['email']);
     $responsavel = trim($_POST['responsavel']);
+    $coordenador_idh = trim($_POST['coordenador_idh'] ?? '');
+    $coordenador_comissao = trim($_POST['coordenador_comissao'] ?? '');
     $capacidade = isset($_POST['capacidade']) ? (int)$_POST['capacidade'] : null;
     $observacoes = trim($_POST['observacoes']);
     
@@ -60,13 +62,13 @@ try {
         $sql = "
             UPDATE escolas 
             SET nome = ?, concurso_id = ?, tipo = ?, endereco = ?, telefone = ?, email = ?, 
-                responsavel = ?, capacidade = ?, observacoes = ?, data_atualizacao = NOW()
+                responsavel = ?, coordenador_idh = ?, coordenador_comissao = ?, capacidade = ?, observacoes = ?, data_atualizacao = NOW()
             WHERE id = ?
         ";
         $stmt = $db->prepare($sql);
         $stmt->execute([
             $nome, $concurso_id, $tipo, $endereco, $telefone, $email, 
-            $responsavel, $capacidade, $observacoes, $escola_id
+            $responsavel, $coordenador_idh, $coordenador_comissao, $capacidade, $observacoes, $escola_id
         ]);
         
         logActivity("Escola atualizada: {$nome} (Concurso ID: {$concurso_id})", 'INFO');
@@ -75,13 +77,13 @@ try {
         // Inserir nova escola
         $sql = "
             INSERT INTO escolas (nome, concurso_id, tipo, endereco, telefone, email, responsavel, 
-                               capacidade, observacoes, status, data_cadastro)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'ativo', NOW())
+                               coordenador_idh, coordenador_comissao, capacidade, observacoes, status, data_cadastro)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ativo', NOW())
         ";
         $stmt = $db->prepare($sql);
         $stmt->execute([
             $nome, $concurso_id, $tipo, $endereco, $telefone, $email, 
-            $responsavel, $capacidade, $observacoes
+            $responsavel, $coordenador_idh, $coordenador_comissao, $capacidade, $observacoes
         ]);
         
         $escola_id = $db->lastInsertId();

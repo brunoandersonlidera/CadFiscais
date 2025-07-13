@@ -237,7 +237,6 @@ include '../includes/header.php';
                                 <th>Concurso</th>
                                 <th>Escola</th>
                                 <th>Sala</th>
-                                <th>Status Contato</th>
                                 <th>Data Aprovação</th>
                             </tr>
                         </thead>
@@ -258,11 +257,6 @@ include '../includes/header.php';
                                 <td><?= htmlspecialchars($fiscal['concurso_titulo']) ?></td>
                                 <td><?= htmlspecialchars($fiscal['escola_nome'] ?? 'Não alocado') ?></td>
                                 <td><?= htmlspecialchars($fiscal['sala_nome'] ?? 'Não alocado') ?></td>
-                                <td>
-                                    <span class="badge bg-<?= getStatusContatoColor($fiscal['status_contato']) ?>">
-                                        <?= ucfirst(str_replace('_', ' ', $fiscal['status_contato'])) ?>
-                                    </span>
-                                </td>
                                 <td><?= date('d/m/Y H:i', strtotime($fiscal['updated_at'])) ?></td>
                             </tr>
                             <?php endforeach; ?>
@@ -362,23 +356,18 @@ function exportarExcel() {
 
 <?php 
 // Funções auxiliares
-function formatPhone($phone) {
-    $phone = preg_replace('/\D/', '', $phone);
-    if (strlen($phone) === 11) {
-        return preg_replace('/(\d{2})(\d{5})(\d{4})/', '($1) $2-$3', $phone);
+)(\d{5})(\d{4})/', '($1) $2-$3', $phone);
     }
     return $phone;
 }
 
-function formatCPF($cpf) {
-    $cpf = preg_replace('/\D/', '', $cpf);
-    return preg_replace('/(\d{3})(\d{3})(\d{3})(\d{2})/', '$1.$2.$3-$4', $cpf);
+)(\d{3})(\d{3})(\d{2})/', '$1.$2.$3-$4', $cpf);
 }
 
 function getStatusContatoColor($status) {
     switch ($status) {
         case 'confirmado': return 'success';
-        case 'contatado': return 'info';
+        case 'nao_respondeu': return 'info';
         case 'nao_contatado': return 'warning';
         case 'desistiu': return 'danger';
         default: return 'secondary';

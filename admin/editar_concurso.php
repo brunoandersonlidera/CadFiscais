@@ -54,6 +54,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Validar dados
     $titulo = trim($_POST['titulo'] ?? '');
     $orgao = trim($_POST['orgao'] ?? '');
+    $numero_concurso = trim($_POST['numero_concurso'] ?? '');
+    $ano_concurso = intval($_POST['ano_concurso'] ?? date('Y'));
     $cidade = trim($_POST['cidade'] ?? '');
     $estado = trim($_POST['estado'] ?? '');
     $data_prova = $_POST['data_prova'] ?? '';
@@ -83,7 +85,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Atualizar no SQLite
                 $stmt = $db->prepare("
                     UPDATE concursos SET 
-                        titulo = ?, orgao = ?, cidade = ?, estado = ?, 
+                        titulo = ?, orgao = ?, numero_concurso = ?, ano_concurso = ?, cidade = ?, estado = ?, 
                         data_prova = ?, horario_inicio = ?, horario_fim = ?, 
                         valor_pagamento = ?, vagas_disponiveis = ?, status = ?, 
                         descricao = ?, termos_aceite = ?, updated_at = CURRENT_TIMESTAMP
@@ -91,7 +93,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ");
                 
                 $result = $stmt->execute([
-                    $titulo, $orgao, $cidade, $estado, $data_prova,
+                    $titulo, $orgao, $numero_concurso, $ano_concurso, $cidade, $estado, $data_prova,
                     $horario_inicio, $horario_fim, $valor_pagamento,
                     $vagas_disponiveis, $status, $descricao, $termos_aceite, $concurso_id
                 ]);
@@ -159,6 +161,27 @@ include '../includes/header.php';
                                     <label for="orgao" class="form-label">Órgão *</label>
                                     <input type="text" class="form-control" id="orgao" name="orgao" 
                                            value="<?= htmlspecialchars($concurso['orgao']) ?>" required>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="numero_concurso" class="form-label">Número do Concurso</label>
+                                    <input type="text" class="form-control" id="numero_concurso" name="numero_concurso" 
+                                           value="<?= htmlspecialchars($concurso['numero_concurso'] ?? '') ?>" 
+                                           placeholder="Ex: 001/2024">
+                                    <div class="form-text">Número oficial do concurso</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="ano_concurso" class="form-label">Ano do Concurso</label>
+                                    <input type="number" class="form-control" id="ano_concurso" name="ano_concurso" 
+                                           value="<?= htmlspecialchars($concurso['ano_concurso'] ?? date('Y')) ?>" 
+                                           min="2000" max="2030">
+                                    <div class="form-text">Ano do concurso</div>
                                 </div>
                             </div>
                         </div>

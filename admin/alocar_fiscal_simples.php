@@ -10,7 +10,7 @@ $fiscal_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 $db = getDB();
 
 if (!$fiscal_id) {
-    showMessage('ID do fiscal não fornecido', 'error');
+    setMessage('ID do fiscal não fornecido', 'error');
     redirect('fiscais.php');
 }
 
@@ -26,12 +26,12 @@ try {
     $fiscal = $stmt->fetch();
     
     if (!$fiscal) {
-        showMessage('Fiscal não encontrado', 'error');
+        setMessage('Fiscal não encontrado', 'error');
         redirect('fiscais.php');
     }
 } catch (Exception $e) {
     logActivity('Erro ao buscar fiscal: ' . $e->getMessage(), 'ERROR');
-    showMessage('Erro ao buscar fiscal', 'error');
+    setMessage('Erro ao buscar fiscal', 'error');
     redirect('fiscais.php');
 }
 
@@ -274,19 +274,6 @@ include '../includes/header.php';
 
 <?php 
 // Funções auxiliares
-function formatPhone($phone) {
-    $phone = preg_replace('/\D/', '', $phone);
-    if (strlen($phone) === 11) {
-        return preg_replace('/(\d{2})(\d{5})(\d{4})/', '($1) $2-$3', $phone);
-    }
-    return $phone;
-}
-
-function formatCPF($cpf) {
-    $cpf = preg_replace('/\D/', '', $cpf);
-    return preg_replace('/(\d{3})(\d{3})(\d{3})(\d{2})/', '$1.$2.$3-$4', $cpf);
-}
-
 function getStatusColor($status) {
     switch ($status) {
         case 'aprovado': return 'success';
