@@ -11,7 +11,6 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 $db = getDB();
-$response = ['success' => false, 'message' => ''];
 
 try {
     // Validar dados
@@ -84,15 +83,14 @@ try {
     // Log da atividade
     logActivity("Novo usuário criado: $nome ($email)", 'INFO');
     
-    $response['success'] = true;
-    $response['message'] = 'Usuário criado com sucesso!';
-    $response['redirect'] = 'usuarios.php';
+    // Redirecionar com mensagem de sucesso
+    setMessage('Usuário criado com sucesso!', 'success');
+    redirect('usuarios.php');
     
 } catch (Exception $e) {
-    $response['message'] = $e->getMessage();
+    // Redirecionar com mensagem de erro
+    setMessage('Erro ao criar usuário: ' . $e->getMessage(), 'error');
     logActivity('Erro ao criar usuário: ' . $e->getMessage(), 'ERROR');
+    redirect('novo_usuario.php');
 }
-
-header('Content-Type: application/json');
-echo json_encode($response);
 ?> 

@@ -21,12 +21,14 @@ try {
                TIMESTAMPDIFF(YEAR, f.data_nascimento, CURDATE()) as idade,
                a.escola_id, a.sala_id, a.data_alocacao, a.horario_alocacao,
                e.nome as escola_nome, s.nome as sala_nome
-        FROM fiscais f
-        LEFT JOIN concursos c ON f.concurso_id = c.id
-        LEFT JOIN alocacoes_fiscais a ON f.id = a.fiscal_id AND a.status = 'ativo' AND a.tipo_alocacao = 'treinamento'
-        LEFT JOIN escolas e ON a.escola_id = e.id
-        LEFT JOIN salas s ON a.sala_id = s.id
-        WHERE f.status = 'aprovado'
+        FROM alocacoes_fiscais a
+        INNER JOIN fiscais f ON a.fiscal_id = f.id
+        INNER JOIN concursos c ON f.concurso_id = c.id
+        INNER JOIN escolas e ON a.escola_id = e.id
+        INNER JOIN salas s ON a.sala_id = s.id
+        WHERE f.status = 'aprovado' 
+        AND a.status = 'ativo' 
+        AND a.tipo_alocacao = 'treinamento'
     ";
     $params = [];
     
@@ -238,11 +240,9 @@ include '../includes/header.php';
                             <table class="table table-striped table-sm">
                                 <thead class="table-warning">
                                     <tr>
-                                        <th width="5%">#</th>
-                                        <th width="25%">Nome</th>
-                                        <th width="15%">CPF</th>
-                                        <th width="15%">Celular</th>
-                                        <th width="15%">Escola</th>
+                                        <th width="10%">#</th>
+                                        <th width="40%">Nome</th>
+                                        <th width="25%">Escola</th>
                                         <th width="15%">Sala</th>
                                         <th width="10%">Assinatura</th>
                                     </tr>
@@ -252,10 +252,8 @@ include '../includes/header.php';
                                     <tr>
                                         <td><?= $index + 1 ?></td>
                                         <td><?= htmlspecialchars($fiscal['nome']) ?></td>
-                                        <td><?= formatCPF($fiscal['cpf']) ?></td>
-                                        <td><?= formatPhone($fiscal['celular']) ?></td>
-                                        <td><?= htmlspecialchars($fiscal['escola_nome'] ?? 'Não alocado') ?></td>
-                                        <td><?= htmlspecialchars($fiscal['sala_nome'] ?? 'Não alocado') ?></td>
+                                        <td><?= htmlspecialchars($fiscal['escola_nome']) ?></td>
+                                        <td><?= htmlspecialchars($fiscal['sala_nome']) ?></td>
                                         <td>
                                             <div style="height: 30px; border-bottom: 1px solid #ccc;"></div>
                                         </td>
@@ -353,6 +351,48 @@ include '../includes/header.php';
 </div>
 
 <script>
+// Atualizar escolas ao mudar concurso
+document.getElementById('concurso_id').addEventListener('change', function() {
+    const concursoId = this.value;
+    const escolaSelect = document.getElementById('escola_id');
+    escolaSelect.innerHTML = '<option value="">Carregando...</option>';
+    
+    if (concursoId) {
+        fetch('buscar_escola.php?concurso_id=' + encodeURIComponent(concursoId))
+            .then(response => response.json())
+            .then(escolas => {
+                escolaSelect.innerHTML = '<option value="">Todas as escolas</option>';
+                escolas.forEach(escola => {
+                    const option = document.createElement('option');
+                    option.value = escola.id;
+                    option.textContent = escola.nome;
+                    escolaSelect.appendChild(option);
+                });
+            })
+            .catch(error => {
+                console.error('Erro ao carregar escolas:', error);
+                escolaSelect.innerHTML = '<option value="">Erro ao carregar</option>';
+            });
+    } else {
+        // Se nenhum concurso selecionado, carregar todas as escolas
+        fetch('buscar_escola.php')
+            .then(response => response.json())
+            .then(escolas => {
+                escolaSelect.innerHTML = '<option value="">Todas as escolas</option>';
+                escolas.forEach(escola => {
+                    const option = document.createElement('option');
+                    option.value = escola.id;
+                    option.textContent = escola.nome;
+                    escolaSelect.appendChild(option);
+                });
+            })
+            .catch(error => {
+                console.error('Erro ao carregar escolas:', error);
+                escolaSelect.innerHTML = '<option value="">Erro ao carregar</option>';
+            });
+    }
+});
+
 function imprimirAta() {
     window.print();
 }

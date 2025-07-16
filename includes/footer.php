@@ -238,6 +238,40 @@
                 }
             });
         }
+        // Suporte a dropdown-submenu (submenu) para Bootstrap 5
+        document.addEventListener('DOMContentLoaded', function () {
+            var dropdownSubmenus = document.querySelectorAll('.dropdown-submenu');
+            dropdownSubmenus.forEach(function (submenu) {
+                var link = submenu.querySelector('.dropdown-toggle');
+                if (link) {
+                    link.addEventListener('mouseenter', function (e) {
+                        submenu.classList.add('show');
+                        var menu = submenu.querySelector('.dropdown-menu');
+                        if (menu) menu.classList.add('show');
+                    });
+                    submenu.addEventListener('mouseleave', function (e) {
+                        submenu.classList.remove('show');
+                        var menu = submenu.querySelector('.dropdown-menu');
+                        if (menu) menu.classList.remove('show');
+                    });
+                    // Para toque em mobile
+                    link.addEventListener('click', function (e) {
+                        e.preventDefault();
+                        var isShown = submenu.classList.contains('show');
+                        document.querySelectorAll('.dropdown-submenu').forEach(function (el) {
+                            el.classList.remove('show');
+                            var menu = el.querySelector('.dropdown-menu');
+                            if (menu) menu.classList.remove('show');
+                        });
+                        if (!isShown) {
+                            submenu.classList.add('show');
+                            var menu = submenu.querySelector('.dropdown-menu');
+                            if (menu) menu.classList.add('show');
+                        }
+                    });
+                }
+            });
+        });
     </script>
 </body>
 </html> 

@@ -38,7 +38,7 @@ if ($concurso_id) {
 
 // Buscar fiscais aprovados
 try {
-    $sql = "SELECT f.nome, f.cpf, f.celular, f.created_at,
+    $sql = "SELECT f.nome, f.created_at,
                    CASE WHEN af.id IS NOT NULL THEN 'Alocado' ELSE 'Não Alocado' END as status_alocacao,
                    e.nome as escola_nome,
                    s.nome as sala_nome
@@ -64,19 +64,17 @@ try {
     $fiscais = [];
 }
 
-// Buscar informações institucionais
+// Criar PDF
 $instituto_nome = getConfig('instituto_nome', 'Instituto Dignidade Humana');
 $instituto_logo = __DIR__ . '/../logos/instituto.png';
 $instituto_info = getConfig('info_institucional', 'Instituto Dignidade Humana\nEndereço: ...\nContato: ...');
-
-// Criar nova instância do PDF elegante
 $pdf = new PDFInstituto('P', PDF_UNIT, PDF_PAGE_FORMAT, true, 'UTF-8', false);
 $pdf->setInstitutoData($instituto_nome, $instituto_logo, $instituto_info);
 
 // Configurar informações do documento
 $pdf->SetCreator('Sistema CadFiscais');
 $pdf->SetAuthor('IDH');
-$pdf->SetTitle('Relatório de Fiscais Aprovados');
+$pdf->SetTitle('Relatório de Fiscais Aprovados - Mural');
 
 // Configurar margens
 $pdf->SetMargins(15, 15, 15);
@@ -91,13 +89,12 @@ $pdf->SetFont('helvetica', '', 10);
 
 // Adicionar página
 $pdf->AddPage();
-$pdf->SetY(30); // Posicionar bem abaixo do cabeçalho
+$pdf->SetY(40); // Posicionar bem abaixo do cabeçalho
 
 // Informações do concurso centralizadas
 if ($concurso) {
-    $pdf->SetFont('helvetica', 'B', 15);
-    $pdf->Cell(0, 8, ' Estado De Mato Grosso ', 0, 1, 'C');
-    $pdf->Cell(0, 8, $concurso['orgao'] . ' de ' . $concurso['cidade'], 0, 1, 'C');
+    $pdf->SetFont('helvetica', 'B', 13);
+    $pdf->Cell(0, 8, $concurso['orgao'] . ' - ' . $concurso['cidade'] . ' - ' . $concurso['estado'], 0, 1, 'C');
     $pdf->SetFont('helvetica', 'B', 12);
     $pdf->Cell(0, 7, $concurso['titulo'] . ' - ' . $concurso['numero_concurso'] . '/' . $concurso['ano_concurso'], 0, 1, 'C');
     $pdf->Ln(8);
@@ -105,7 +102,7 @@ if ($concurso) {
 
 // Título do relatório
 $pdf->SetFont('helvetica', 'B', 14);
-$pdf->Cell(0, 10, 'RELATÓRIO DE FISCAIS APROVADOS', 0, 1, 'C');
+$pdf->Cell(0, 10, 'RELATÓRIO DE FISCAIS APROVADOS - MURAL', 0, 1, 'C');
 $pdf->Ln(5);
 
 // Informações do concurso
@@ -121,8 +118,8 @@ if ($concurso) {
 $pdf->SetFont('helvetica', 'B', 9);
 $pdf->SetFillColor(240, 240, 240);
 $pdf->Cell(60, 8, 'Nome', 1, 0, 'L', true);
-$pdf->Cell(30, 8, 'Telefone', 1, 0, 'L', true);
-$pdf->Cell(60, 8, 'Escola', 1, 0, 'L', true);
+$pdf->Cell(30, 8, 'Alocação', 1, 0, 'L', true);
+$pdf->Cell(50, 8, 'Escola', 1, 0, 'L', true);
 $pdf->Cell(30, 8, 'Sala', 1, 1, 'L', true);
 
 // Dados dos fiscais
@@ -138,17 +135,16 @@ foreach ($fiscais as $fiscal) {
         $pdf->SetFont('helvetica', 'B', 9);
         $pdf->SetFillColor(240, 240, 240);
         $pdf->Cell(60, 8, 'Nome', 1, 0, 'L', true);
-        $pdf->Cell(30, 8, 'Telefone', 1, 0, 'L', true);
-        $pdf->Cell(60, 8, 'Escola', 1, 0, 'L', true);
+        $pdf->Cell(30, 8, 'Alocação', 1, 0, 'L', true);
+        $pdf->Cell(50, 8, 'Escola', 1, 0, 'L', true);
         $pdf->Cell(30, 8, 'Sala', 1, 1, 'L', true);
         $pdf->SetFont('helvetica', '', 8);
         $pdf->SetFillColor(255, 255, 255);
     }
-    
-    $pdf->Cell(60, 6, substr($fiscal['nome'], 0, 30), 1, 0, 'L');
-    $pdf->Cell(30, 6, $fiscal['celular'], 1, 0, 'L');
-    $pdf->Cell(60, 6, $fiscal['escola_nome'] ?? '-', 1, 0, 'L');
-    $pdf->Cell(30, 6, substr($fiscal['sala_nome'] ?? '-', 0, 18), 1, 1, 'L');
+    $pdf->Cell(60, 6, substr($fiscal['nome'], 0, 35), 1, 0, 'L');
+    $pdf->Cell(30, 6, $fiscal['status_alocacao'], 1, 0, 'L');
+    $pdf->Cell(50, 6, substr($fiscal['escola_nome'] ?? '-', 0, 22), 1, 0, 'L');
+    $pdf->Cell(30, 6, substr($fiscal['sala_nome'] ?? '-', 0, 12), 1, 1, 'L');
 }
 
 // Estatísticas
@@ -174,11 +170,11 @@ ob_end_clean();
 
 // Configurar headers para download
 header('Content-Type: application/pdf');
-header('Content-Disposition: attachment; filename="relatorio_fiscais_aprovados_' . date('Y-m-d_H-i-s') . '.pdf"');
+header('Content-Disposition: attachment; filename="relatorio_fiscais_aprovados_mural_' . date('Y-m-d_H-i-s') . '.pdf"');
 header('Cache-Control: private, max-age=0, must-revalidate');
 header('Pragma: public');
 
 // Saída do PDF
-$pdf->Output('relatorio_fiscais_aprovados_' . date('Y-m-d_H-i-s') . '.pdf', 'D');
+$pdf->Output('relatorio_fiscais_aprovados_mural_' . date('Y-m-d_H-i-s') . '.pdf', 'D');
 exit;
 ?> 

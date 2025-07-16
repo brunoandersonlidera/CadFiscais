@@ -9,6 +9,16 @@ if (!isLoggedIn() || !isAdmin()) {
 $message = '';
 $error = '';
 
+// Garantir que a coluna info_institucional existe
+try {
+    $db = getDB();
+    if ($db) {
+        $db->query("ALTER TABLE configuracoes ADD COLUMN info_institucional TEXT NULL");
+    }
+} catch (Exception $e) {
+    // Ignorar erro se a coluna já existir
+}
+
 // Processar formulário de configurações
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
@@ -23,7 +33,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'max_fiscais_por_concurso' => (int)($_POST['max_fiscais_por_concurso'] ?? 100),
                 'cadastro_aberto' => (int)($_POST['cadastro_aberto'] ?? 1),
                 'idade_minima' => (int)($_POST['idade_minima'] ?? 18),
-                'ddi_padrao' => sanitizeInput($_POST['ddi_padrao'] ?? '+55')
+                'ddi_padrao' => sanitizeInput($_POST['ddi_padrao'] ?? '+55'),
+                'info_institucional' => sanitizeInput($_POST['info_institucional'] ?? '')
             ];
             
             foreach ($configuracoes as $chave => $valor) {
@@ -160,6 +171,11 @@ try {
                             <label for="ddi_padrao">DDI Padrão:</label>
                             <input type="text" id="ddi_padrao" name="ddi_padrao" class="form-control" 
                                    value="<?php echo htmlspecialchars($configuracoes['ddi_padrao'] ?? '+55'); ?>" placeholder="+55">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="info_institucional">Informações Institucionais (nome, endereço, contatos):</label>
+                            <textarea id="info_institucional" name="info_institucional" class="form-control" rows="4" placeholder="Ex: Instituto de Desenvolvimento Humano - Rua Exemplo, 123, Centro, Cidade/UF - Tel: (99) 9999-9999 | contato@instituto.org"><?php echo htmlspecialchars($configuracoes['info_institucional'] ?? ''); ?></textarea>
                         </div>
                         
                         <div class="form-group">

@@ -1,12 +1,6 @@
 <?php
 require_once '../config.php';
 
-// Verificar se tem permissão para alocações
-// TEMPORARIAMENTE COMENTADO PARA DEBUG
-// if (!isLoggedIn() || !temPermissaoAlocacoes()) {
-//     redirect('../login.php');
-// }
-
 // Verificação simplificada - apenas se está logado
 if (!isLoggedIn()) {
     redirect('../login.php');
@@ -79,7 +73,7 @@ try {
     logActivity('Erro ao buscar concursos: ' . $e->getMessage(), 'ERROR');
 }
 
-$pageTitle = 'Alocar Fiscais';
+$pageTitle = 'Alocar Fiscais (Versão Teste)';
 include '../includes/header.php';
 ?>
 
@@ -88,7 +82,7 @@ include '../includes/header.php';
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1 class="mb-0">
                 <i class="fas fa-map-marker-alt me-2"></i>
-                Alocar Fiscais
+                Alocar Fiscais (Versão Teste)
             </h1>
             <div>
                 <button type="button" class="btn btn-primary me-2" onclick="alocarTodosFiscais()">
@@ -358,27 +352,6 @@ include '../includes/header.php';
     </div>
 </div>
 
-<!-- Modal de Detalhes -->
-<div class="modal fade" id="detalhesModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">
-                    <i class="fas fa-user me-2"></i>
-                    Detalhes do Fiscal
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body" id="detalhesContent">
-                <!-- Conteúdo será carregado via AJAX -->
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
-            </div>
-        </div>
-    </div>
-</div>
-
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Inicializar DataTable
@@ -394,6 +367,45 @@ document.addEventListener('DOMContentLoaded', function() {
         ]
     });
 });
+
+function alocarTodosFiscais() {
+    if (!confirm('Tem certeza que deseja alocar todos os fiscais aprovados automaticamente? Esta ação irá distribuir os fiscais entre as escolas e salas disponíveis.')) {
+        return;
+    }
+    
+    showLoading();
+    
+    // Obter concurso selecionado
+    const concursoId = document.getElementById('concurso_id').value;
+    
+    fetch('alocar_todos_fiscais.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+            concurso_id: concursoId 
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideLoading();
+        if (data.success) {
+            showMessage(data.message, 'success');
+            // Recarregar a página após 2 segundos
+            setTimeout(() => {
+                window.location.reload();
+            }, 2000);
+        } else {
+            showMessage(data.message || 'Erro ao alocar fiscais', 'error');
+        }
+    })
+    .catch(error => {
+        hideLoading();
+        console.error('Erro:', error);
+        showMessage('Erro ao alocar fiscais', 'error');
+    });
+}
 
 function verDetalhes(id) {
     showLoading();
@@ -545,45 +557,6 @@ function getStatusColor(status) {
         case 'cancelado': return 'secondary';
         default: return 'secondary';
     }
-}
-
-function alocarTodosFiscais() {
-    if (!confirm('Tem certeza que deseja alocar todos os fiscais aprovados automaticamente? Esta ação irá distribuir os fiscais entre as escolas e salas disponíveis.')) {
-        return;
-    }
-    
-    showLoading();
-    
-    // Obter concurso selecionado
-    const concursoId = document.getElementById('concurso_id').value;
-    
-    fetch('alocar_todos_fiscais.php', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-            concurso_id: concursoId 
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        hideLoading();
-        if (data.success) {
-            showMessage(data.message, 'success');
-            // Recarregar a página após 2 segundos
-            setTimeout(() => {
-                window.location.reload();
-            }, 2000);
-        } else {
-            showMessage(data.message || 'Erro ao alocar fiscais', 'error');
-        }
-    })
-    .catch(error => {
-        hideLoading();
-        console.error('Erro:', error);
-        showMessage('Erro ao alocar fiscais', 'error');
-    });
 }
 </script>
 

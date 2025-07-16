@@ -177,6 +177,22 @@ include '../includes/header.php';
                     </div>
                     
                     <div class="col-md-6">
+                        <div class="card mb-3 border-warning">
+                            <div class="card-body">
+                                <h6 class="card-title">
+                                    <i class="fas fa-bullhorn me-2 text-warning"></i>
+                                    Fiscais Aprovados para Mural
+                                </h6>
+                                <p class="card-text">Relatório para afixação em mural, sem CPF e telefone.</p>
+                                <a href="exportar_pdf_fiscais_aprovados_mural.php" class="btn btn-warning btn-sm">
+                                    <i class="fas fa-download me-2"></i>
+                                    Gerar PDF para Mural
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
                         <div class="card mb-3">
                             <div class="card-body">
                                 <h6 class="card-title">

@@ -12,59 +12,93 @@ $error = '';
 // Processar confirmação de presença
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['confirmar_presenca'])) {
     try {
-        $fiscal_id = (int)$_POST['fiscal_id'];
-        $concurso_id = (int)$_POST['concurso_id'];
-        $presente = (int)$_POST['presente'];
-        $observacoes = sanitizeInput($_POST['observacoes'] ?? '');
-        
         $db = getDB();
         if (!$db) {
             throw new Exception("Erro de conexão com banco de dados");
         }
         
-        // Verificar se já existe registro de presença no treinamento
-        $stmt = $db->prepare("SELECT id FROM presenca_treinamento WHERE fiscal_id = ? AND concurso_id = ?");
-        $stmt->execute([$fiscal_id, $concurso_id]);
-        
-        if ($stmt->rowCount() > 0) {
-            // Atualizar presença existente
-            $stmt = $db->prepare("UPDATE presenca_treinamento SET presente = ?, observacoes = ?, updated_at = CURRENT_TIMESTAMP WHERE fiscal_id = ? AND concurso_id = ?");
-            $stmt->execute([$presente, $observacoes, $fiscal_id, $concurso_id]);
-        } else {
-            // Inserir nova presença
-            $stmt = $db->prepare("INSERT INTO presenca_treinamento (fiscal_id, concurso_id, presente, observacoes, created_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)");
-            $stmt->execute([$fiscal_id, $concurso_id, $presente, $observacoes]);
+        // Verificar se os arrays existem
+        if (!isset($_POST['fiscal_id']) || !isset($_POST['presente']) || !isset($_POST['concurso_id'])) {
+            throw new Exception("Dados do formulário incompletos");
         }
         
-        $message = 'Presença no treinamento registrada com sucesso!';
-        logActivity("Presença no treinamento registrada para fiscal ID: $fiscal_id, Concurso ID: $concurso_id, Presente: " . ($presente ? 'Sim' : 'Não'), 'INFO');
+        $concurso_id = (int)$_POST['concurso_id'];
+        $fiscal_ids = $_POST['fiscal_id'];
+        $presentes = $_POST['presente'];
+        $observacoes = $_POST['observacoes'] ?? [];
+        $data_treinamento = $_POST['data_treinamento'] ?? date('Y-m-d');
+        
+        // Verificar se o concurso existe
+        $stmt = $db->prepare("SELECT id FROM concursos WHERE id = ? AND status = 'ativo'");
+        $stmt->execute([$concurso_id]);
+        if ($stmt->rowCount() == 0) {
+            throw new Exception("Concurso não encontrado ou não ativo");
+        }
+        
+        $sucessos = 0;
+        $erros = 0;
+        
+        // Processar cada fiscal
+        foreach ($fiscal_ids as $index => $fiscal_id) {
+            $fiscal_id = (int)$fiscal_id;
+            $presente = isset($presentes[$index]) ? $presentes[$index] : 'ausente';
+            $observacao = sanitizeInput($observacoes[$index] ?? '');
+
+            // Converter valor para string status
+            if ($presente === 'presente') {
+                $status = 'presente';
+            } elseif ($presente === 'justificado') {
+                $status = 'justificado';
+            } else {
+                $status = 'ausente';
+            }
+            
+            // Validar se o fiscal_id é válido
+            if ($fiscal_id <= 0) {
+                $erros++;
+                continue;
+            }
+            
+            // Verificar se o fiscal existe
+            $stmt = $db->prepare("SELECT id FROM fiscais WHERE id = ? AND status = 'aprovado'");
+            $stmt->execute([$fiscal_id]);
+            if ($stmt->rowCount() == 0) {
+                $erros++;
+                continue;
+            }
+            
+            // Verificar se já existe registro de presença no treinamento
+            $stmt = $db->prepare("SELECT id FROM presenca WHERE fiscal_id = ? AND concurso_id = ? AND tipo_presenca = 'treinamento'");
+            $stmt->execute([$fiscal_id, $concurso_id]);
+            
+            // Garantir que a data_presenca seja sempre preenchida
+            $data_presenca = $data_treinamento ?: date('Y-m-d');
+
+            // Gravar presença (evento único, mas editável)
+            $stmt = $db->prepare(
+                "INSERT INTO presenca (fiscal_id, concurso_id, data_presenca, tipo_presenca, status, observacoes, created_at, updated_at)
+                 VALUES (?, ?, ?, 'treinamento', ?, ?, NOW(), NOW())
+                 ON DUPLICATE KEY UPDATE status=VALUES(status), observacoes=VALUES(observacoes), data_presenca=VALUES(data_presenca), updated_at=NOW()"
+            );
+            $stmt->execute([$fiscal_id, $concurso_id, $data_presenca, $status, $observacao]);
+            
+            $sucessos++;
+            logActivity("Presença no treinamento registrada para fiscal ID: " . $fiscal_id . ", Concurso ID: " . $concurso_id . ", Status: " . $status, 'INFO');
+        }
+        
+        if ($sucessos > 0) {
+            $message = "Presenças registradas com sucesso! $sucessos registro(s) atualizado(s).";
+            if ($erros > 0) {
+                $message .= " $erros registro(s) com erro.";
+            }
+        } else {
+            $error = "Nenhuma presença foi registrada. Verifique os dados.";
+        }
         
     } catch (Exception $e) {
         $error = 'Erro ao registrar presença: ' . $e->getMessage();
         logActivity("Erro ao registrar presença no treinamento: " . $e->getMessage(), 'ERROR');
     }
-}
-
-// Criar tabela presenca_treinamento se não existir
-try {
-    $db = getDB();
-    $stmt = $db->query("SHOW TABLES LIKE 'presenca_treinamento'");
-    if ($stmt->rowCount() == 0) {
-        $db->exec("CREATE TABLE presenca_treinamento (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            fiscal_id INT NOT NULL,
-            concurso_id INT NOT NULL,
-            presente TINYINT(1) DEFAULT 0,
-            observacoes TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            FOREIGN KEY (fiscal_id) REFERENCES fiscais(id) ON DELETE CASCADE,
-            FOREIGN KEY (concurso_id) REFERENCES concursos(id) ON DELETE CASCADE,
-            UNIQUE KEY unique_fiscal_concurso (fiscal_id, concurso_id)
-        )");
-    }
-} catch (Exception $e) {
-    $error = 'Erro ao criar tabela de presença no treinamento: ' . $e->getMessage();
 }
 
 // Buscar concursos ativos
@@ -106,38 +140,52 @@ if (isset($_GET['concurso_id']) && !empty($_GET['concurso_id'])) {
         $concurso_selecionado = $stmt->fetch(PDO::FETCH_ASSOC);
         
         if ($concurso_selecionado) {
-            // Se escola selecionada, filtrar por escola
-            $where_conditions = ["f.concurso_id = ?", "f.status = 'aprovado'"];
-            $params = [$concurso_id];
-            
-            if (isset($_GET['escola_id']) && !empty($_GET['escola_id'])) {
-                $escola_id = (int)$_GET['escola_id'];
-                $where_conditions[] = "f.escola_id = ?";
-                $params[] = $escola_id;
-            }
-            
-            $where_clause = implode(" AND ", $where_conditions);
-            
-            // Buscar fiscais aprovados do concurso com dados de presença no treinamento e informações de alocação
-            $stmt = $db->prepare("
+            // Buscar fiscais aprovados do concurso
+            $sql = "
                 SELECT f.*, 
                        e.nome as escola_nome,
                        s.nome as sala_nome,
                        af.tipo_alocacao,
-                       af.observacoes as observacoes_alocacao,
-                       CASE WHEN pt.presente IS NOT NULL THEN pt.presente ELSE NULL END as presenca_registrada,
-                       pt.observacoes as observacoes_presenca,
-                       pt.created_at as data_registro_presenca
+                       af.observacoes as observacoes_alocacao
                 FROM fiscais f
-                LEFT JOIN escolas e ON f.escola_id = e.id
-                LEFT JOIN salas s ON f.sala_id = s.id
                 LEFT JOIN alocacoes_fiscais af ON f.id = af.fiscal_id AND af.status = 'ativo'
-                LEFT JOIN presenca_treinamento pt ON f.id = pt.fiscal_id AND pt.concurso_id = f.concurso_id
-                WHERE $where_clause
-                ORDER BY e.nome, s.nome, f.nome
-            ");
+                LEFT JOIN escolas e ON af.escola_id = e.id
+                LEFT JOIN salas s ON af.sala_id = s.id
+                WHERE f.concurso_id = ? AND f.status = 'aprovado'
+            ";
+            $params = [$concurso_id];
+            
+            // Se escola selecionada, filtrar por escola da alocação
+            if (isset($_GET['escola_id']) && !empty($_GET['escola_id'])) {
+                $escola_id = (int)$_GET['escola_id'];
+                $sql .= " AND af.escola_id = ?";
+                $params[] = $escola_id;
+            }
+            
+            $sql .= " ORDER BY f.nome ASC";
+            
+            $stmt = $db->prepare($sql);
             $stmt->execute($params);
             $fiscais = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            // Buscar status de presença para cada fiscal
+            foreach ($fiscais as &$fiscal) {
+                $stmtPresenca = $db->prepare("SELECT status, observacoes, data_presenca, updated_at FROM presenca WHERE fiscal_id = ? AND concurso_id = ? AND tipo_presenca = 'treinamento' LIMIT 1");
+                $stmtPresenca->execute([$fiscal['id'], $concurso_id]);
+                $presenca = $stmtPresenca->fetch(PDO::FETCH_ASSOC);
+                if ($presenca) {
+                    $fiscal['status'] = $presenca['status'];
+                    $fiscal['observacoes'] = $presenca['observacoes'];
+                    $fiscal['data_presenca'] = $presenca['data_presenca'];
+                    $fiscal['updated_at'] = $presenca['updated_at'];
+                } else {
+                    $fiscal['status'] = null;
+                    $fiscal['observacoes'] = '';
+                    $fiscal['data_presenca'] = null;
+                    $fiscal['updated_at'] = null;
+                }
+            }
+            unset($fiscal);
         }
     } catch (Exception $e) {
         $error = 'Erro ao carregar fiscais: ' . $e->getMessage();
@@ -172,33 +220,35 @@ if (isset($_GET['concurso_id']) && !empty($_GET['concurso_id'])) {
             gap: 10px;
             margin-bottom: 10px;
         }
-        .btn-presente {
-            background: #28a745;
-            color: white;
+        .btn-presente, .btn-ausente, .btn-justificado {
+            background: #222;
+            color: #fff;
             border: none;
-            padding: 8px 16px;
+            padding: 10px 18px;
             border-radius: 4px;
             cursor: pointer;
-        }
-        .btn-ausente {
-            background: #dc3545;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 4px;
-            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            transition: background 0.2s, color 0.2s;
         }
         .btn-presente.active {
             background: #218838;
+            color: #fff;
         }
         .btn-ausente.active {
             background: #c82333;
+            color: #fff;
+        }
+        .btn-justificado.active {
+            background: #ff9800;
+            color: #222;
         }
         .status-presenca {
             padding: 5px 10px;
             border-radius: 4px;
             font-weight: bold;
             margin-top: 5px;
+            font-size: 1rem;
         }
         .status-presente {
             background: #d4edda;
@@ -218,13 +268,46 @@ if (isset($_GET['concurso_id']) && !empty($_GET['concurso_id'])) {
             border: 1px solid #ddd;
             border-radius: 4px;
             margin-top: 5px;
+            font-size: 1rem;
         }
         .header {
             background: #007bff;
             color: white;
-            padding: 20px;
+            padding: 28px 20px 24px 20px;
             border-radius: 8px;
             margin-bottom: 20px;
+            text-align: center;
+        }
+        .header h1 {
+            font-size: 2.2rem;
+            font-weight: bold;
+            text-shadow: 1px 1px 4px rgba(0,0,0,0.25);
+            margin-bottom: 8px;
+        }
+        .header p {
+            font-size: 1.1rem;
+            font-weight: 500;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.15);
+        }
+        .card-header.bg-primary.text-white {
+            background: #0056b3 !important;
+            color: #fff !important;
+            font-weight: bold;
+            font-size: 1.2rem;
+            text-shadow: 1px 1px 4px rgba(0,0,0,0.18);
+        }
+        .card-header h5 {
+            font-size: 1.3rem;
+            font-weight: bold;
+            margin-bottom: 0;
+        }
+        .fiscal-info h6 {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #222;
+        }
+        .fiscal-info small {
+            color: #444;
         }
         .concurso-select {
             width: 100%;
@@ -292,6 +375,7 @@ if (isset($_GET['concurso_id']) && !empty($_GET['concurso_id'])) {
                 <?php if (!empty($fiscais)): ?>
                 <form method="POST">
                     <input type="hidden" name="concurso_id" value="<?= $concurso_selecionado['id'] ?>">
+                    <input type="hidden" name="data_treinamento" value="<?= $data_treinamento ?>">
                     
                     <?php foreach ($fiscais as $fiscal): ?>
                     <div class="fiscal-card">
@@ -336,29 +420,33 @@ if (isset($_GET['concurso_id']) && !empty($_GET['concurso_id'])) {
                         </div>
                         
                         <div class="presenca-buttons">
-                            <button type="button" class="btn-presente <?= $fiscal['presenca_registrada'] === 1 ? 'active' : '' ?>" 
-                                    onclick="marcarPresenca(<?= $fiscal['id'] ?>, 1)">
+                            <button type="button" class="btn-presente <?= $fiscal['status'] === 'presente' ? 'active' : '' ?>" 
+                                    onclick="marcarPresenca(<?= $fiscal['id'] ?>, 'presente')">
                                 ✅ Presente
                             </button>
-                            <button type="button" class="btn-ausente <?= $fiscal['presenca_registrada'] === 0 ? 'active' : '' ?>" 
-                                    onclick="marcarPresenca(<?= $fiscal['id'] ?>, 0)">
+                            <button type="button" class="btn-ausente <?= $fiscal['status'] === 'ausente' ? 'active' : '' ?>" 
+                                    onclick="marcarPresenca(<?= $fiscal['id'] ?>, 'ausente')">
                                 ❌ Ausente
+                            </button>
+                            <button type="button" class="btn-justificado <?= $fiscal['status'] === 'justificado' ? 'active' : '' ?>" 
+                                    onclick="marcarPresenca(<?= $fiscal['id'] ?>, 'justificado')">
+                                👋 Justificado
                             </button>
                         </div>
                         
                         <input type="hidden" name="fiscal_id[]" value="<?= $fiscal['id'] ?>">
                         <input type="hidden" name="presente[]" id="presente_<?= $fiscal['id'] ?>" 
-                               value="<?= $fiscal['presenca_registrada'] ?? '' ?>">
+                               value="<?= $fiscal['status'] !== null ? $fiscal['status'] : 'ausente' ?>">
                         
                         <input type="text" name="observacoes[]" class="observacoes-input" 
                                placeholder="Observações (opcional)" 
-                               value="<?= htmlspecialchars($fiscal['observacoes_presenca'] ?? '') ?>">
+                               value="<?= htmlspecialchars($fiscal['observacoes'] ?? '') ?>">
                         
-                        <?php if ($fiscal['presenca_registrada'] !== null): ?>
-                        <div class="status-presenca status-<?= $fiscal['presenca_registrada'] ? 'presente' : 'ausente' ?>">
-                            <?= $fiscal['presenca_registrada'] ? '✅ Presente' : '❌ Ausente' ?>
-                            <?php if ($fiscal['data_registro_presenca']): ?>
-                            <br><small>Registrado em: <?= date('d/m/Y H:i', strtotime($fiscal['data_registro_presenca'])) ?></small>
+                        <?php if ($fiscal['status'] !== null): ?>
+                        <div class="status-presenca status-<?= $fiscal['status'] ?>">
+                            <?= ucfirst($fiscal['status']) ?>
+                            <?php if (!empty($fiscal['updated_at'])): ?>
+                            <br><small>Registrado em: <?= date('d/m/Y H:i', strtotime($fiscal['updated_at'])) ?> (UTC-3)</small>
                             <?php endif; ?>
                         </div>
                         <?php else: ?>
@@ -392,29 +480,32 @@ if (isset($_GET['concurso_id']) && !empty($_GET['concurso_id'])) {
     </div>
 
     <script>
-    function marcarPresenca(fiscalId, presente) {
+    function marcarPresenca(fiscalId, status) {
         // Encontrar o card do fiscal
-        const fiscalCard = document.querySelector(`input[name="fiscal_id[]"][value="${fiscalId}"]`).closest('.fiscal-card');
+        const fiscalCard = document.querySelector(`input[name=\"fiscal_id[]\"][value=\"${fiscalId}\"]`).closest('.fiscal-card');
+        const btnPresente = fiscalCard.querySelector('.btn-presente');
+        const btnAusente = fiscalCard.querySelector('.btn-ausente');
+        const btnJustificado = fiscalCard.querySelector('.btn-justificado');
+        const inputPresente = fiscalCard.querySelector(`input[name=\"presente[]\"]`);
         
-        if (fiscalCard) {
-            const btnPresente = fiscalCard.querySelector('.btn-presente');
-            const btnAusente = fiscalCard.querySelector('.btn-ausente');
-            const inputPresente = fiscalCard.querySelector(`input[name="presente[]"]`);
-            
-            // Remover classes active
-            btnPresente.classList.remove('active');
-            btnAusente.classList.remove('active');
-            
-            // Adicionar classe active ao botão clicado
-            if (presente) {
-                btnPresente.classList.add('active');
-            } else {
-                btnAusente.classList.add('active');
-            }
-            
-            // Atualizar input hidden
-            inputPresente.value = presente;
+        // Remover classes active
+        btnPresente.classList.remove('active');
+        btnAusente.classList.remove('active');
+        if (btnJustificado) {
+            btnJustificado.classList.remove('active');
         }
+        
+        // Adicionar classe active ao botão clicado
+        if (status === 'presente') {
+            btnPresente.classList.add('active');
+        } else if (status === 'ausente') {
+            btnAusente.classList.add('active');
+        } else if (status === 'justificado') {
+            btnJustificado.classList.add('active');
+        }
+        
+        // Atualizar input hidden
+        inputPresente.value = status;
     }
     </script>
 </body>

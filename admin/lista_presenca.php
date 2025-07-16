@@ -261,19 +261,18 @@ include '../includes/header.php';
                                     <th width="15%">CPF</th>
                                     <th width="15%">Celular</th>
                                     <th width="15%">Sala</th>
-                                    <th width="10%">Horário</th>
                                     <th width="15%">Assinatura</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <?php foreach ($fiscais_escola as $index => $fiscal): ?>
+                                <?php foreach (
+                                    $fiscais_escola as $index => $fiscal): ?>
                                 <tr>
                                     <td><?= $index + 1 ?></td>
                                     <td><?= htmlspecialchars($fiscal['nome']) ?></td>
                                     <td><?= formatCPF($fiscal['cpf']) ?></td>
                                     <td><?= formatPhone($fiscal['celular']) ?></td>
                                     <td><?= htmlspecialchars($fiscal['sala_nome'] ?? 'Não alocado') ?></td>
-                                    <td><?= $fiscal['horario_alocacao'] ?? 'N/A' ?></td>
                                     <td>
                                         <div style="height: 30px; border-bottom: 1px solid #ccc;"></div>
                                     </td>

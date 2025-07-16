@@ -16,13 +16,21 @@ $data_treinamento = isset($_GET['data_treinamento']) ? $_GET['data_treinamento']
 
 try {
     $sql = "
-        SELECT f.*, c.titulo as concurso_titulo, c.data_prova,
-               TIMESTAMPDIFF(YEAR, f.data_nascimento, CURDATE()) as idade,
-               a.escola_id, a.sala_id, a.data_alocacao, a.horario_alocacao,
-               e.nome as escola_nome, s.nome as sala_nome
+        SELECT 
+            f.*, 
+            c.titulo as concurso_titulo, 
+            c.data_prova,
+            TIMESTAMPDIFF(YEAR, f.data_nascimento, CURDATE()) as idade,
+            a.escola_id, 
+            a.sala_id, 
+            a.data_alocacao, 
+            a.horario_alocacao,
+            a.tipo_alocacao,
+            e.nome as escola_nome, 
+            s.nome as sala_nome
         FROM fiscais f
         LEFT JOIN concursos c ON f.concurso_id = c.id
-        LEFT JOIN alocacoes_fiscais a ON f.id = a.fiscal_id AND a.status = 'ativo' AND a.tipo_alocacao = 'treinamento'
+        LEFT JOIN alocacoes_fiscais a ON f.id = a.fiscal_id AND a.status = 'ativo'
         LEFT JOIN escolas e ON a.escola_id = e.id
         LEFT JOIN salas s ON a.sala_id = s.id
         WHERE f.status = 'aprovado'
@@ -44,8 +52,13 @@ try {
     $stmt = $db->prepare($sql);
     $stmt->execute($params);
     $fiscais = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Debug: mostrar quantos fiscais foram encontrados
+    echo "<!-- Debug: " . count($fiscais) . " fiscais encontrados -->";
+    
 } catch (Exception $e) {
     logActivity('Erro ao buscar fiscais para treinamento: ' . $e->getMessage(), 'ERROR');
+    echo "<!-- Debug: Erro na consulta: " . $e->getMessage() . " -->";
 }
 
 // Buscar concursos para filtro
@@ -241,15 +254,17 @@ include '../includes/header.php';
                 $escolas_agrupadas = [];
                 foreach ($fiscais as $fiscal) {
                     $escola_nome = $fiscal['escola_nome'] ?? 'Não Alocado';
-                    $escolas_agrupadas[$escola_nome][] = $fiscal;
+                    $sala_nome = $fiscal['sala_nome'] ?? 'Não Alocado';
+                    $chave = $escola_nome . ' - ' . $sala_nome;
+                    $escolas_agrupadas[$chave][] = $fiscal;
                 }
                 ?>
                 
-                <?php foreach ($escolas_agrupadas as $escola_nome => $fiscais_escola): ?>
+                <?php foreach ($escolas_agrupadas as $chave => $fiscais_escola): ?>
                 <div class="mb-4">
                     <h6 class="text-primary">
                         <i class="fas fa-school me-2"></i>
-                        <?= htmlspecialchars($escola_nome) ?>
+                        <?= htmlspecialchars($chave) ?>
                     </h6>
                     
                     <div class="table-responsive">
@@ -260,9 +275,9 @@ include '../includes/header.php';
                                     <th width="25%">Nome</th>
                                     <th width="15%">CPF</th>
                                     <th width="15%">Celular</th>
-                                    <th width="15%">Sala</th>
-                                    <th width="10%">Horário</th>
-                                    <th width="15%">Assinatura</th>
+                                    <th width="10%">Idade</th>
+                                    <th width="10%">Gênero</th>
+                                    <th width="20%">Assinatura</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -272,8 +287,8 @@ include '../includes/header.php';
                                     <td><?= htmlspecialchars($fiscal['nome']) ?></td>
                                     <td><?= formatCPF($fiscal['cpf']) ?></td>
                                     <td><?= formatPhone($fiscal['celular']) ?></td>
-                                    <td><?= htmlspecialchars($fiscal['sala_nome'] ?? 'Não alocado') ?></td>
-                                    <td><?= $fiscal['horario_alocacao'] ?? 'N/A' ?></td>
+                                    <td><?= $fiscal['idade'] ?? 'N/A' ?> anos</td>
+                                    <td><?= $fiscal['genero'] === 'F' ? 'F' : 'M' ?></td>
                                     <td>
                                         <div style="height: 30px; border-bottom: 1px solid #ccc;"></div>
                                     </td>
@@ -331,7 +346,9 @@ function imprimirLista() {
 }
 
 function exportarPDF() {
-    window.open('exportar_pdf_presenca_treinamento.php?' + new URLSearchParams(window.location.search), '_blank');
+    const params = new URLSearchParams(window.location.search);
+    params.set('tipo', 'treinamento');
+    window.open('exportar_pdf_presenca.php?' + params.toString(), '_blank');
 }
 </script>
 

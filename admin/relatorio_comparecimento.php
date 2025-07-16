@@ -1,36 +1,48 @@
 <?php
 require_once '../config.php';
+require_once '../includes/pdf_base.php';
 
-// Verificar se é admin
-if (!isAdmin()) {
+// Verificar se tem permissão para relatórios
+if (!isLoggedIn() || !temPermissaoPresenca()) {
     redirect('../login.php');
 }
 
 $db = getDB();
-$comparecimentos = [];
+$relatorio = [];
 
 // Filtros
 $concurso_id = isset($_GET['concurso_id']) ? (int)$_GET['concurso_id'] : null;
 $escola_id = isset($_GET['escola_id']) ? (int)$_GET['escola_id'] : null;
-$data_evento = isset($_GET['data_evento']) ? $_GET['data_evento'] : date('Y-m-d');
-$tipo_evento = isset($_GET['tipo_evento']) ? $_GET['tipo_evento'] : '';
+$data_inicio = isset($_GET['data_inicio']) ? $_GET['data_inicio'] : date('Y-m-d', strtotime('-30 days'));
+$data_fim = isset($_GET['data_fim']) ? $_GET['data_fim'] : date('Y-m-d');
 
 try {
     $sql = "
-        SELECT f.*, c.titulo as concurso_titulo,
-               TIMESTAMPDIFF(YEAR, f.data_nascimento, CURDATE()) as idade,
-               a.escola_id, a.sala_id, a.data_alocacao, a.horario_alocacao, a.tipo_alocacao,
-               e.nome as escola_nome, s.nome as sala_nome,
-               p.status as presenca_status, p.data_registro, p.observacoes
+        SELECT 
+            f.id,
+            f.nome,
+            f.cpf,
+            f.celular,
+            c.titulo as concurso_titulo,
+            e.nome as escola_nome,
+            s.nome as sala_nome,
+            a.data_alocacao,
+            a.horario_alocacao,
+            a.tipo_alocacao,
+            pt.status as presente_treinamento,
+            pt.observacoes as obs_treinamento,
+            pp.status as presente_prova,
+            pp.observacoes as obs_prova
         FROM fiscais f
         LEFT JOIN concursos c ON f.concurso_id = c.id
         LEFT JOIN alocacoes_fiscais a ON f.id = a.fiscal_id AND a.status = 'ativo'
         LEFT JOIN escolas e ON a.escola_id = e.id
         LEFT JOIN salas s ON a.sala_id = s.id
-        LEFT JOIN presenca p ON f.id = p.fiscal_id AND DATE(p.data_evento) = ?
+        LEFT JOIN presenca pt ON f.id = pt.fiscal_id AND pt.concurso_id = f.concurso_id AND pt.tipo_presenca = 'treinamento'
+        LEFT JOIN presenca pp ON f.id = pp.fiscal_id AND pp.concurso_id = f.concurso_id AND pp.tipo_presenca = 'prova'
         WHERE f.status = 'aprovado'
     ";
-    $params = [$data_evento];
+    $params = [];
     
     if ($concurso_id) {
         $sql .= " AND f.concurso_id = ?";
@@ -42,18 +54,13 @@ try {
         $params[] = $escola_id;
     }
     
-    if ($tipo_evento) {
-        $sql .= " AND a.tipo_alocacao = ?";
-        $params[] = $tipo_evento;
-    }
-    
     $sql .= " ORDER BY e.nome, s.nome, f.nome";
     
     $stmt = $db->prepare($sql);
     $stmt->execute($params);
-    $comparecimentos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $relatorio = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (Exception $e) {
-    logActivity('Erro ao buscar comparecimentos: ' . $e->getMessage(), 'ERROR');
+    logActivity('Erro ao buscar dados para relatório: ' . $e->getMessage(), 'ERROR');
 }
 
 // Buscar concursos para filtro
@@ -74,8 +81,47 @@ try {
     logActivity('Erro ao buscar escolas: ' . $e->getMessage(), 'ERROR');
 }
 
+// Buscar dados do concurso
+$concurso = null;
+if ($concurso_id) {
+    try {
+        $stmt = $db->prepare("SELECT * FROM concursos WHERE id = ?");
+        $stmt->execute([$concurso_id]);
+        $concurso = $stmt->fetch();
+    } catch (Exception $e) {
+        logActivity('Erro ao buscar concurso: ' . $e->getMessage(), 'ERROR');
+    }
+} else {
+    // Se não especificado, buscar o concurso ativo mais recente
+    try {
+        $stmt = $db->query("SELECT * FROM concursos WHERE status = 'ativo' ORDER BY data_prova DESC LIMIT 1");
+        $concurso = $stmt->fetch();
+    } catch (Exception $e) {
+        logActivity('Erro ao buscar concurso ativo: ' . $e->getMessage(), 'ERROR');
+    }
+}
+
 $pageTitle = 'Relatório de Comparecimento';
 include '../includes/header.php';
+
+$instituto_nome = getConfig('instituto_nome', 'Instituto Dignidade Humana');
+$instituto_logo = __DIR__ . '/../logos/instituto.png';
+$instituto_info = getConfig('info_institucional', 'Instituto Dignidade Humana\nEndereço: ...\nContato: ...');
+$pdf = new PDFInstituto('P', PDF_UNIT, PDF_PAGE_FORMAT, true, 'UTF-8', false);
+$pdf->setInstitutoData($instituto_nome, $instituto_logo, $instituto_info);
+$pdf->AddPage();
+$pdf->Ln(18); // Espaço extra após o cabeçalho
+
+// Informações do concurso centralizadas
+if ($concurso) {
+    $pdf->SetFont('helvetica', 'B', 13);
+    $pdf->Cell(0, 8, $concurso['orgao'] . ' - ' . $concurso['cidade'] . ' - ' . $concurso['estado'], 0, 1, 'C');
+    $pdf->SetFont('helvetica', 'B', 12);
+    $pdf->Cell(0, 7, $concurso['titulo'] . ' - ' . $concurso['numero_concurso'] . '/' . $concurso['ano_concurso'], 0, 1, 'C');
+    $pdf->Ln(8);
+}
+
+// Título do relatório
 ?>
 
 <div class="row">
@@ -134,18 +180,12 @@ include '../includes/header.php';
                         </select>
                     </div>
                     <div class="col-md-2">
-                        <label for="data_evento" class="form-label">Data do Evento</label>
-                        <input type="date" class="form-control" id="data_evento" name="data_evento" 
-                               value="<?= $data_evento ?>">
+                        <label for="data_inicio" class="form-label">Data Início</label>
+                        <input type="date" class="form-control" id="data_inicio" name="data_inicio" value="<?= $data_inicio ?>">
                     </div>
                     <div class="col-md-2">
-                        <label for="tipo_evento" class="form-label">Tipo de Evento</label>
-                        <select class="form-select" id="tipo_evento" name="tipo_evento">
-                            <option value="">Todos</option>
-                            <option value="prova" <?= $tipo_evento == 'prova' ? 'selected' : '' ?>>Prova</option>
-                            <option value="treinamento" <?= $tipo_evento == 'treinamento' ? 'selected' : '' ?>>Treinamento</option>
-                            <option value="reuniao" <?= $tipo_evento == 'reuniao' ? 'selected' : '' ?>>Reunião</option>
-                        </select>
+                        <label for="data_fim" class="form-label">Data Fim</label>
+                        <input type="date" class="form-control" id="data_fim" name="data_fim" value="<?= $data_fim ?>">
                     </div>
                     <div class="col-md-2">
                         <label class="form-label">&nbsp;</label>
@@ -169,7 +209,7 @@ include '../includes/header.php';
             <div class="card-body">
                 <div class="d-flex justify-content-between">
                     <div>
-                        <h4 class="mb-0"><?= count($comparecimentos) ?></h4>
+                        <h4 class="mb-0"><?= count($relatorio) ?></h4>
                         <p class="mb-0">Total de Fiscais</p>
                     </div>
                     <div class="align-self-center">
@@ -186,12 +226,12 @@ include '../includes/header.php';
                 <div class="d-flex justify-content-between">
                     <div>
                         <h4 class="mb-0">
-                            <?= count(array_filter($comparecimentos, function($c) { return $c['presenca_status'] == 'presente'; })) ?>
+                            <?= count(array_filter($relatorio, function($r) { return $r['presente_treinamento'] == 'presente'; })) ?>
                         </h4>
-                        <p class="mb-0">Presentes</p>
+                        <p class="mb-0">Presentes Treinamento</p>
                     </div>
                     <div class="align-self-center">
-                        <i class="fas fa-check-circle fa-2x"></i>
+                        <i class="fas fa-graduation-cap fa-2x"></i>
                     </div>
                 </div>
             </div>
@@ -199,17 +239,17 @@ include '../includes/header.php';
     </div>
     
     <div class="col-md-3">
-        <div class="card bg-danger text-white">
+        <div class="card bg-info text-white">
             <div class="card-body">
                 <div class="d-flex justify-content-between">
                     <div>
                         <h4 class="mb-0">
-                            <?= count(array_filter($comparecimentos, function($c) { return $c['presenca_status'] == 'ausente'; })) ?>
+                            <?= count(array_filter($relatorio, function($r) { return $r['presente_prova'] == 'presente'; })) ?>
                         </h4>
-                        <p class="mb-0">Ausentes</p>
+                        <p class="mb-0">Presentes Prova</p>
                     </div>
                     <div class="align-self-center">
-                        <i class="fas fa-times-circle fa-2x"></i>
+                        <i class="fas fa-file-alt fa-2x"></i>
                     </div>
                 </div>
             </div>
@@ -222,12 +262,12 @@ include '../includes/header.php';
                 <div class="d-flex justify-content-between">
                     <div>
                         <h4 class="mb-0">
-                            <?= count(array_filter($comparecimentos, function($c) { return !$c['presenca_status']; })) ?>
+                            <?= count(array_filter($relatorio, function($r) { return $r['presente_treinamento'] == 'presente' && $r['presente_prova'] == 'presente'; })) ?>
                         </h4>
-                        <p class="mb-0">Não Registrados</p>
+                        <p class="mb-0">Presentes Ambos</p>
                     </div>
                     <div class="align-self-center">
-                        <i class="fas fa-question-circle fa-2x"></i>
+                        <i class="fas fa-check-double fa-2x"></i>
                     </div>
                 </div>
             </div>
@@ -235,256 +275,117 @@ include '../includes/header.php';
     </div>
 </div>
 
-<!-- Tabela de Comparecimento -->
+<!-- Relatório -->
 <div class="row">
     <div class="col-12">
         <div class="card">
-            <div class="card-header bg-primary text-white">
+            <div class="card-header bg-info text-white">
                 <h5 class="mb-0">
-                    <i class="fas fa-list me-2"></i>
-                    Lista de Comparecimento - <?= date('d/m/Y', strtotime($data_evento)) ?>
+                    <i class="fas fa-table me-2"></i>
+                    Relatório de Comparecimento (<?= count($relatorio) ?> fiscais)
                 </h5>
             </div>
             <div class="card-body">
+                <?php if (!empty($relatorio)): ?>
                 <div class="table-responsive">
-                    <table class="table table-striped" id="comparecimentoTable">
+                    <table class="table table-striped table-hover" id="relatorioTable">
                         <thead>
                             <tr>
                                 <th>Nome</th>
                                 <th>CPF</th>
-                                <th>Celular</th>
+                                <th>Concurso</th>
                                 <th>Escola</th>
                                 <th>Sala</th>
-                                <th>Tipo Evento</th>
+                                <th>Data Alocação</th>
+                                <th>Treinamento</th>
+                                <th>Prova</th>
                                 <th>Status</th>
-                                <th>Horário Chegada</th>
-                                <th>Observações</th>
-                                <th>Ações</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <?php foreach ($comparecimentos as $comparecimento): ?>
+                            <?php foreach ($relatorio as $fiscal): ?>
                             <tr>
-                                <td><?= htmlspecialchars($comparecimento['nome']) ?></td>
-                                <td><?= formatCPF($comparecimento['cpf']) ?></td>
-                                <td><?= formatPhone($comparecimento['celular']) ?></td>
-                                <td><?= htmlspecialchars($comparecimento['escola_nome'] ?? 'Não alocado') ?></td>
-                                <td><?= htmlspecialchars($comparecimento['sala_nome'] ?? 'Não alocado') ?></td>
+                                <td><?= htmlspecialchars($fiscal['nome']) ?></td>
+                                <td><?= formatCPF($fiscal['cpf']) ?></td>
+                                <td><?= htmlspecialchars($fiscal['concurso_titulo']) ?></td>
+                                <td><?= htmlspecialchars($fiscal['escola_nome'] ?? 'Não alocado') ?></td>
+                                <td><?= htmlspecialchars($fiscal['sala_nome'] ?? 'Não alocado') ?></td>
+                                <td><?= $fiscal['data_alocacao'] ? date('d/m/Y', strtotime($fiscal['data_alocacao'])) : 'N/A' ?></td>
                                 <td>
-                                    <span class="badge bg-<?= getTipoEventoColor($comparecimento['tipo_alocacao']) ?>">
-                                        <?= ucfirst($comparecimento['tipo_alocacao']) ?>
-                                    </span>
-                                </td>
-                                <td>
-                                    <?php if ($comparecimento['presenca_status']): ?>
-                                    <span class="badge bg-<?= getStatusPresencaColor($comparecimento['presenca_status']) ?>">
-                                        <?= ucfirst($comparecimento['presenca_status']) ?>
-                                    </span>
+                                    <?php if ($fiscal['presente_treinamento'] == 'presente'): ?>
+                                    <span class="badge bg-success">Presente</span>
+                                    <?php elseif ($fiscal['presente_treinamento'] == 'ausente'): ?>
+                                    <span class="badge bg-danger">Ausente</span>
+                                    <?php elseif ($fiscal['presente_treinamento'] == 'justificado'): ?>
+                                    <span class="badge bg-warning">Justificado</span>
                                     <?php else: ?>
                                     <span class="badge bg-secondary">Não registrado</span>
                                     <?php endif; ?>
                                 </td>
                                 <td>
-                                    <?= $comparecimento['data_registro'] ? date('H:i', strtotime($comparecimento['data_registro'])) : '-' ?>
+                                    <?php if ($fiscal['presente_prova'] == 'presente'): ?>
+                                    <span class="badge bg-success">Presente</span>
+                                    <?php elseif ($fiscal['presente_prova'] == 'ausente'): ?>
+                                    <span class="badge bg-danger">Ausente</span>
+                                    <?php elseif ($fiscal['presente_prova'] == 'justificado'): ?>
+                                    <span class="badge bg-warning">Justificado</span>
+                                    <?php else: ?>
+                                    <span class="badge bg-secondary">Não registrado</span>
+                                    <?php endif; ?>
                                 </td>
-                                <td><?= htmlspecialchars($comparecimento['observacoes'] ?? '') ?></td>
-                                <td>
-                                    <div class="btn-group" role="group">
-                                        <?php if (!$comparecimento['presenca_status']): ?>
-                                        <button onclick="marcarPresenca(<?= $comparecimento['id'] ?>, 'presente')" 
-                                                class="btn btn-sm btn-success" title="Marcar Presente">
-                                            <i class="fas fa-check"></i>
-                                        </button>
-                                        <button onclick="marcarPresenca(<?= $comparecimento['id'] ?>, 'ausente')" 
-                                                class="btn btn-sm btn-danger" title="Marcar Ausente">
-                                            <i class="fas fa-times"></i>
-                                        </button>
-                                        <?php else: ?>
-                                        <button onclick="editarPresenca(<?= $comparecimento['id'] ?>)" 
-                                                class="btn btn-sm btn-warning" title="Editar">
-                                            <i class="fas fa-edit"></i>
-                                        </button>
-                                        <?php endif; ?>
-                                    </div>
-                                </td>
-                            </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Resumo por Escola -->
-<?php if (!empty($comparecimentos)): ?>
-<div class="row mt-4">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header bg-info text-white">
-                <h5 class="mb-0">
-                    <i class="fas fa-chart-bar me-2"></i>
-                    Resumo por Escola
-                </h5>
-            </div>
-            <div class="card-body">
-                <?php
-                $escolas_resumo = [];
-                foreach ($comparecimentos as $comparecimento) {
-                    $escola = $comparecimento['escola_nome'] ?? 'Não Alocado';
-                    if (!isset($escolas_resumo[$escola])) {
-                        $escolas_resumo[$escola] = [
-                            'total' => 0,
-                            'presentes' => 0,
-                            'ausentes' => 0,
-                            'nao_registrados' => 0
-                        ];
-                    }
-                    $escolas_resumo[$escola]['total']++;
-                    
-                    if ($comparecimento['presenca_status'] == 'presente') {
-                        $escolas_resumo[$escola]['presentes']++;
-                    } elseif ($comparecimento['presenca_status'] == 'ausente') {
-                        $escolas_resumo[$escola]['ausentes']++;
-                    } else {
-                        $escolas_resumo[$escola]['nao_registrados']++;
-                    }
-                }
-                ?>
-                
-                <div class="table-responsive">
-                    <table class="table table-sm">
-                        <thead>
-                            <tr>
-                                <th>Escola</th>
-                                <th>Total</th>
-                                <th>Presentes</th>
-                                <th>Ausentes</th>
-                                <th>Não Registrados</th>
-                                <th>Taxa de Comparecimento</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($escolas_resumo as $escola => $dados): ?>
-                            <tr>
-                                <td><?= htmlspecialchars($escola) ?></td>
-                                <td><span class="badge bg-primary"><?= $dados['total'] ?></span></td>
-                                <td><span class="badge bg-success"><?= $dados['presentes'] ?></span></td>
-                                <td><span class="badge bg-danger"><?= $dados['ausentes'] ?></span></td>
-                                <td><span class="badge bg-warning"><?= $dados['nao_registrados'] ?></span></td>
                                 <td>
                                     <?php 
-                                    $taxa = $dados['total'] > 0 ? round(($dados['presentes'] / $dados['total']) * 100, 1) : 0;
-                                    $cor_taxa = $taxa >= 80 ? 'success' : ($taxa >= 60 ? 'warning' : 'danger');
+                                    $treinamento = $fiscal['presente_treinamento'] ?? null;
+                                    $prova = $fiscal['presente_prova'] ?? null;
+                                    
+                                    if ($treinamento === 'presente' && $prova === 'presente') {
+                                        echo '<span class="badge bg-success">Completo</span>';
+                                    } elseif ($treinamento === 'presente' || $prova === 'presente') {
+                                        echo '<span class="badge bg-warning">Parcial</span>';
+                                    } elseif ($treinamento === 'ausente' || $prova === 'ausente') {
+                                        echo '<span class="badge bg-danger">Ausente</span>';
+                                    } else {
+                                        echo '<span class="badge bg-secondary">Não registrado</span>';
+                                    }
                                     ?>
-                                    <span class="badge bg-<?= $cor_taxa ?>"><?= $taxa ?>%</span>
                                 </td>
                             </tr>
                             <?php endforeach; ?>
                         </tbody>
                     </table>
                 </div>
+                <?php else: ?>
+                <div class="text-center py-5">
+                    <i class="fas fa-clipboard-list text-muted" style="font-size: 3rem;"></i>
+                    <h5 class="mt-3 text-muted">Nenhum dado encontrado</h5>
+                    <p class="text-muted">Tente ajustar os filtros ou verificar se há dados disponíveis.</p>
+                </div>
+                <?php endif; ?>
             </div>
         </div>
     </div>
 </div>
-<?php endif; ?>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Inicializar DataTable
-    $('#comparecimentoTable').DataTable({
+    $('#relatorioTable').DataTable({
         language: {
             url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/pt-BR.json'
         },
         responsive: true,
-        pageLength: 50,
-        order: [[0, 'asc']],
-        dom: 'Bfrtip',
-        buttons: [
-            'copy', 'csv', 'excel', 'pdf', 'print'
-        ]
+        pageLength: 25,
+        order: [[0, 'asc']]
     });
 });
 
-function marcarPresenca(fiscalId, status) {
-    const dataEvento = document.getElementById('data_evento').value;
-    if (!dataEvento) {
-        showMessage('Selecione uma data de evento', 'error');
-        return;
-    }
-    
-    if (confirm(`Confirmar marcação como ${status}?`)) {
-        fetch('marcar_presenca.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                fiscal_id: fiscalId,
-                status: status,
-                data_evento: dataEvento
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showMessage(`Presença marcada como ${status} com sucesso!`, 'success');
-                setTimeout(() => {
-                    location.reload();
-                }, 1500);
-            } else {
-                showMessage('Erro ao marcar presença: ' + data.message, 'error');
-            }
-        })
-        .catch(error => {
-            showMessage('Erro ao processar requisição', 'error');
-        });
-    }
-}
-
-function editarPresenca(fiscalId) {
-    // Implementar modal de edição de presença
-    showMessage('Funcionalidade de edição será implementada em breve', 'info');
-}
-
 function exportarPDF() {
-    window.open('exportar_pdf_comparecimento.php?' + new URLSearchParams(window.location.search), '_blank');
+    window.open('exportar_pdf_relatorio_comparecimento.php?' + new URLSearchParams(window.location.search), '_blank');
 }
 
 function exportarExcel() {
-    window.open('exportar_excel_comparecimento.php?' + new URLSearchParams(window.location.search), '_blank');
+    window.open('exportar_excel_relatorio_comparecimento.php?' + new URLSearchParams(window.location.search), '_blank');
 }
 </script>
 
-<?php 
-// Funções auxiliares
-)(\d{3})(\d{3})(\d{2})/', '$1.$2.$3-$4', $cpf);
-}
-
-)(\d{5})(\d{4})/', '($1) $2-$3', $phone);
-    }
-    return $phone;
-}
-
-function getTipoEventoColor($tipo) {
-    switch ($tipo) {
-        case 'prova': return 'success';
-        case 'treinamento': return 'warning';
-        case 'reuniao': return 'info';
-        default: return 'secondary';
-    }
-}
-
-function getStatusPresencaColor($status) {
-    switch ($status) {
-        case 'presente': return 'success';
-        case 'ausente': return 'danger';
-        case 'atrasado': return 'warning';
-        default: return 'secondary';
-    }
-}
-
-include '../includes/footer.php'; 
-?> 
+<?php include '../includes/footer.php'; ?> 

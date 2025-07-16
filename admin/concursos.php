@@ -148,30 +148,27 @@ include '../includes/header.php';
                                     <?= htmlspecialchars($concurso['cidade']) ?>/<?= htmlspecialchars($concurso['estado']) ?>
                                 </td>
                                 <td>
-                                    <?= date('d/m/Y', strtotime($concurso['data_prova'])) ?>
-                                    <br>
-                                    <small class="text-muted">
-                                        <?= $concurso['horario_inicio'] ?>h às <?= $concurso['horario_fim'] ?>h
-                                    </small>
-                                </td>
-                                <td>
-                                    <div class="d-flex align-items-center">
-                                        <div class="me-2">
-                                            <?= $concurso['fiscais_cadastrados'] ?>/<?= $concurso['vagas_disponiveis'] ?>
-                                        </div>
-                                        <div class="progress flex-grow-1" style="height: 6px;">
-                                            <?php 
-                                            $percentual = $concurso['vagas_disponiveis'] > 0 
-                                                ? (($concurso['fiscais_cadastrados'] / $concurso['vagas_disponiveis']) * 100) 
-                                                : 0;
-                                            ?>
-                                            <div class="progress-bar <?= $percentual >= 90 ? 'bg-danger' : ($percentual >= 70 ? 'bg-warning' : 'bg-success') ?>" 
-                                                 style="width: <?= min($percentual, 100) ?>%"></div>
-                                        </div>
-                                    </div>
-                                    <small class="text-muted">
-                                        <?= $concurso['vagas_restantes'] ?> restantes
-                                    </small>
+                                    <?php
+                                    // Substituir célula de vagas e progresso por informações de datas e links
+                                    ?>
+                                    <?php if (!empty($concurso['logo_orgao']) && file_exists('../' . $concurso['logo_orgao'])): ?>
+                                        <img src="../<?= htmlspecialchars($concurso['logo_orgao']) ?>" alt="Logo" style="height: 40px;">
+                                        <br>
+                                    <?php endif; ?>
+                                    <strong>Treinamento:</strong> <?= !empty($concurso['data_treinamento']) ? date('d/m/Y', strtotime($concurso['data_treinamento'])) : 'N/A' ?>
+                                    <?php if (!empty($concurso['hora_treinamento'])): ?> às <?= htmlspecialchars($concurso['hora_treinamento']) ?><?php endif; ?><br>
+                                    <strong>Prova:</strong> <?= !empty($concurso['data_prova']) ? date('d/m/Y', strtotime($concurso['data_prova'])) : 'N/A' ?><br>
+                                    <?php if ($concurso['tipo_treinamento'] === 'online' && !empty($concurso['link_treinamento'])): ?>
+                                        <strong>Link Treinamento:</strong> <a href="<?= htmlspecialchars($concurso['link_treinamento']) ?>" target="_blank">Acessar</a><br>
+                                    <?php elseif ($concurso['tipo_treinamento'] === 'presencial' && !empty($concurso['local_treinamento'])): ?>
+                                        <strong>Local Treinamento:</strong> <?= htmlspecialchars($concurso['local_treinamento']) ?><br>
+                                    <?php endif; ?>
+                                    <?php if (!empty($concurso['link_material_fiscal'])): ?>
+                                        <strong>Material/Manual:</strong> <a href="<?= htmlspecialchars($concurso['link_material_fiscal']) ?>" target="_blank">Acessar</a><br>
+                                    <?php endif; ?>
+                                    <a href="consulta_local_fiscal.php?concurso_id=<?= $concurso['id'] ?>" class="btn btn-sm btn-outline-primary mt-2">
+                                        <i class="fas fa-search"></i> Verificar Local do Fiscal
+                                    </a>
                                 </td>
                                 <td>
                                     <?php
@@ -236,14 +233,31 @@ include '../includes/header.php';
                                                         <li><strong>Data:</strong> <?= date('d/m/Y', strtotime($concurso['data_prova'])) ?></li>
                                                         <li><strong>Horário:</strong> <?= $concurso['horario_inicio'] ?>h às <?= $concurso['horario_fim'] ?>h</li>
                                                         <li><strong>Pagamento:</strong> R$ <?= number_format($concurso['valor_pagamento'], 2, ',', '.') ?></li>
+                                                        <!-- Novas informações de treinamento -->
+                                                        <?php if (!empty($concurso['data_treinamento'])): ?>
+                                                        <li><strong>Data do Treinamento:</strong> <?= date('d/m/Y', strtotime($concurso['data_treinamento'])) ?></li>
+                                                        <?php endif; ?>
+                                                        <?php if (!empty($concurso['hora_treinamento'])): ?>
+                                                        <li><strong>Horário do Treinamento:</strong> <?= htmlspecialchars($concurso['hora_treinamento']) ?></li>
+                                                        <?php endif; ?>
+                                                        <?php if (!empty($concurso['tipo_treinamento'])): ?>
+                                                        <li><strong>Tipo de Treinamento:</strong> <?= ucfirst($concurso['tipo_treinamento']) ?></li>
+                                                        <?php endif; ?>
+                                                        <?php if ($concurso['tipo_treinamento'] === 'online' && !empty($concurso['link_treinamento'])): ?>
+                                                        <li><strong>Link do Treinamento:</strong> <a href="<?= htmlspecialchars($concurso['link_treinamento']) ?>" target="_blank">Acessar</a></li>
+                                                        <?php endif; ?>
+                                                        <?php if ($concurso['tipo_treinamento'] === 'presencial' && !empty($concurso['local_treinamento'])): ?>
+                                                        <li><strong>Local do Treinamento:</strong> <?= htmlspecialchars($concurso['local_treinamento']) ?></li>
+                                                        <?php endif; ?>
+                                                        <?php if (!empty($concurso['link_material_fiscal'])): ?>
+                                                        <li><strong>Material/Manual do Fiscal:</strong> <a href="<?= htmlspecialchars($concurso['link_material_fiscal']) ?>" target="_blank">Acessar</a></li>
+                                                        <?php endif; ?>
                                                     </ul>
                                                 </div>
                                                 <div class="col-md-6">
                                                     <h6><i class="fas fa-users me-2"></i>Estatísticas</h6>
                                                     <ul class="list-unstyled">
-                                                        <li><strong>Vagas Disponíveis:</strong> <?= $concurso['vagas_disponiveis'] ?></li>
                                                         <li><strong>Fiscais Cadastrados:</strong> <?= $concurso['fiscais_cadastrados'] ?></li>
-                                                        <li><strong>Vagas Restantes:</strong> <?= $concurso['vagas_restantes'] ?></li>
                                                         <li><strong>Status:</strong> 
                                                             <span class="badge bg-<?= $status_class[$concurso['status']] ?>">
                                                                 <?= $status_text[$concurso['status']] ?>

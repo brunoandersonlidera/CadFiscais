@@ -1,5 +1,6 @@
 <?php
 require_once '../config.php';
+require_once '../includes/pdf_base.php';
 
 // Verificar se é admin
 if (!isAdmin()) {
@@ -65,8 +66,51 @@ try {
     logActivity('Erro ao buscar escolas: ' . $e->getMessage(), 'ERROR');
 }
 
+// Buscar dados do concurso
+$concurso = null;
+if ($concurso_id) {
+    try {
+        $stmt = $db->prepare("SELECT * FROM concursos WHERE id = ?");
+        $stmt->execute([$concurso_id]);
+        $concurso = $stmt->fetch();
+    } catch (Exception $e) {
+        logActivity('Erro ao buscar concurso: ' . $e->getMessage(), 'ERROR');
+    }
+} else {
+    // Se não especificado, buscar o concurso ativo mais recente
+    try {
+        $stmt = $db->query("SELECT * FROM concursos WHERE status = 'ativo' ORDER BY data_prova DESC LIMIT 1");
+        $concurso = $stmt->fetch();
+    } catch (Exception $e) {
+        logActivity('Erro ao buscar concurso ativo: ' . $e->getMessage(), 'ERROR');
+    }
+}
+
 $pageTitle = 'Relatório de Fiscais Aprovados';
 include '../includes/header.php';
+
+$instituto_nome = getConfig('instituto_nome', 'Instituto Dignidade Humana');
+$instituto_logo = __DIR__ . '/../logos/instituto.png';
+$instituto_info = getConfig('info_institucional', 'Instituto Dignidade Humana\nEndereço: ...\nContato: ...');
+$pdf = new PDFInstituto('P', PDF_UNIT, PDF_PAGE_FORMAT, true, 'UTF-8', false);
+$pdf->setInstitutoData($instituto_nome, $instituto_logo, $instituto_info);
+$pdf->AddPage();
+$pdf->Ln(18); // Espaço extra após o cabeçalho
+
+// Informações do concurso centralizadas
+if ($concurso) {
+    $pdf->SetFont('helvetica', 'B', 13);
+    $pdf->Cell(0, 8, $concurso['orgao'] . ' - ' . $concurso['cidade'] . ' - ' . $concurso['estado'], 0, 1, 'C');
+    $pdf->SetFont('helvetica', 'B', 12);
+    $pdf->Cell(0, 7, $concurso['titulo'] . ' - ' . $concurso['numero_concurso'] . '/' . $concurso['ano_concurso'], 0, 1, 'C');
+    $pdf->Ln(8);
+}
+
+// Título do relatório
+$pdf->SetFont('helvetica', 'B', 16);
+$pdf->Cell(0, 10, 'Relatório de Fiscais Aprovados', 0, 1, 'C');
+$pdf->Ln(5);
+
 ?>
 
 <div class="row">
@@ -356,14 +400,6 @@ function exportarExcel() {
 
 <?php 
 // Funções auxiliares
-)(\d{5})(\d{4})/', '($1) $2-$3', $phone);
-    }
-    return $phone;
-}
-
-)(\d{3})(\d{3})(\d{2})/', '$1.$2.$3-$4', $cpf);
-}
-
 function getStatusContatoColor($status) {
     switch ($status) {
         case 'confirmado': return 'success';

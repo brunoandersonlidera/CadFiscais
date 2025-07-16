@@ -141,13 +141,51 @@
                 height: 30px;
             }
         }
+        /* Suporte visual para dropdown-submenu */
+        .dropdown-submenu {
+            position: relative;
+        }
+        .dropdown-submenu > .dropdown-menu {
+            top: 0;
+            left: 100%;
+            margin-top: -1px;
+            margin-left: 0;
+            border-radius: 0.5rem;
+            min-width: 220px;
+        }
+        .dropdown-submenu > a:after {
+            content: "\f105";
+            float: right;
+            border: none;
+            font-family: 'Font Awesome 6 Free';
+            font-weight: 900;
+        }
+        .dropdown-submenu .dropdown-menu {
+            display: none;
+        }
+        .dropdown-submenu.show > .dropdown-menu {
+            display: block;
+        }
     </style>
 </head>
 <body>
     <?php
-    // Detectar se estamos na pasta admin
-    $isAdmin = strpos($_SERVER['REQUEST_URI'] ?? '', '/admin/') !== false;
-    $basePath = $isAdmin ? '../' : '';
+    // Detectar se estamos na pasta admin ou gerador_dados
+    $currentPath = $_SERVER['REQUEST_URI'] ?? '';
+    $isAdmin = strpos($currentPath, '/admin/') !== false;
+    $isGerador = strpos($currentPath, '/gerador_dados/') !== false;
+    
+    // Definir basePath baseado na localização atual
+    if ($isAdmin) {
+        $basePath = '../';
+    } elseif ($isGerador) {
+        $basePath = '../';
+    } else {
+        $basePath = '';
+    }
+    
+    // Debug (remover em produção)
+    // echo "<!-- Debug: currentPath=$currentPath, isAdmin=" . ($isAdmin ? 'true' : 'false') . ", isGerador=" . ($isGerador ? 'true' : 'false') . ", basePath=$basePath -->";
     ?>
     
     <!-- Navbar -->
@@ -155,7 +193,7 @@
         <div class="container">
             <a class="navbar-brand d-flex align-items-center" href="<?= isLoggedIn() ? ($isAdmin ? 'dashboard.php' : 'admin/dashboard.php') : 'index.php' ?>">
                 <img src="<?= $basePath ?>logos/instituto.png" alt="IDH" class="me-2">
-                <span>IDH - Fiscais</span>
+                <span>Instituto Dignidade Humana</span>
             </a>
             
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -196,9 +234,30 @@
                             <li><a class="dropdown-item" href="<?= $isAdmin ? 'fiscais.php' : 'admin/fiscais.php' ?>">
                                 <i class="fas fa-list me-2"></i>Listar Fiscais
                             </a></li>
-                            <li><a class="dropdown-item" href="<?= $isAdmin ? 'export.php' : 'admin/export.php' ?>">
-                                <i class="fas fa-download me-2"></i>Exportar Dados
+                            <li><a class="dropdown-item" href="<?= $isAdmin ? 'editar_fiscal.php' : 'admin/editar_fiscal.php' ?>">
+                                <i class="fas fa-edit me-2"></i>Editar Fiscais
                             </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li class="dropdown-submenu">
+                                <a class="dropdown-item dropdown-toggle" href="#">
+                                    <i class="fas fa-clipboard-check me-2"></i>Presença
+                                </a>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="<?= $basePath ?>presenca_prova.php">
+                                        <i class="fas fa-file-alt me-2"></i>Presença na Prova
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="<?= $basePath ?>presenca_treinamento.php">
+                                        <i class="fas fa-graduation-cap me-2"></i>Presença no Treinamento
+                                    </a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" href="<?= $isAdmin ? 'lista_presenca.php' : 'admin/lista_presenca.php' ?>">
+                                        <i class="fas fa-list me-2"></i>Lista de Presença - Prova
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="<?= $isAdmin ? 'lista_presenca_treinamento.php' : 'admin/lista_presenca_treinamento.php' ?>">
+                                        <i class="fas fa-graduation-cap me-2"></i>Lista de Presença - Treinamento
+                                    </a></li>
+                                </ul>
+                            </li>
                         </ul>
                     </li>
                     <li class="nav-item dropdown">
@@ -209,8 +268,14 @@
                             <li><a class="dropdown-item" href="<?= $isAdmin ? 'relatorios.php' : 'admin/relatorios.php' ?>">
                                 <i class="fas fa-chart-bar me-2"></i>Relatórios Gerais
                             </a></li>
-                            <li><a class="dropdown-item" href="<?= $isAdmin ? 'guia_acesso.php' : 'admin/guia_acesso.php' ?>">
-                                <i class="fas fa-map me-2"></i>Guia de Acesso
+                            <li><a class="dropdown-item" href="<?= $isAdmin ? 'relatorio_fiscais.php' : 'admin/relatorio_fiscais.php' ?>">
+                                <i class="fas fa-list me-2"></i>Exportar Fiscais (PDF/Excel)
+                            </a></li>
+                            <li><a class="dropdown-item" href="<?= $isAdmin ? 'exportar_pdf_fiscais.php' : 'admin/exportar_pdf_fiscais.php' ?>">
+                                <i class="fas fa-file-pdf me-2"></i> Relação de Fiscais Inscritos
+                            </a></li>
+                            <li><a class="dropdown-item" href="<?= $isAdmin ? 'exportar_pdf_fiscais_aprovados.php' : 'admin/exportar_pdf_fiscais_aprovados.php' ?>">
+                                <i class="fas fa-file-pdf me-2"></i> Relação de Fiscais Aprovados
                             </a></li>
                         </ul>
                     </li>
@@ -227,22 +292,6 @@
                             </a></li>
                             <li><a class="dropdown-item" href="<?= $isAdmin ? 'alocar_fiscais.php' : 'admin/alocar_fiscais.php' ?>">
                                 <i class="fas fa-map-marker-alt me-2"></i>Alocar Fiscais
-                            </a></li>
-                        </ul>
-                    </li>
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-clipboard-check me-1"></i>Presença
-                        </a>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="<?= $isAdmin ? 'lista_presenca.php' : 'admin/lista_presenca.php' ?>">
-                                <i class="fas fa-list me-2"></i>Lista de Presença - Prova
-                            </a></li>
-                            <li><a class="dropdown-item" href="<?= $isAdmin ? 'lista_presenca_treinamento.php' : 'admin/lista_presenca_treinamento.php' ?>">
-                                <i class="fas fa-graduation-cap me-2"></i>Lista de Presença - Treinamento
-                            </a></li>
-                            <li><a class="dropdown-item" href="<?= $isAdmin ? 'relatorio_comparecimento.php' : 'admin/relatorio_comparecimento.php' ?>">
-                                <i class="fas fa-clipboard-check me-2"></i>Relatório de Comparecimento
                             </a></li>
                         </ul>
                     </li>

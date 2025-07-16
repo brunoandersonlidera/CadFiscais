@@ -51,11 +51,11 @@ try {
     $stmt = $db->query("
         SELECT 
             CASE 
-                WHEN idade IS NULL OR idade = 0 OR idade = '' THEN 'Sem Idade'
-                WHEN idade < 25 THEN '18-24'
-                WHEN idade < 35 THEN '25-34'
-                WHEN idade < 45 THEN '35-44'
-                WHEN idade < 55 THEN '45-54'
+                WHEN TIMESTAMPDIFF(YEAR, data_nascimento, CURDATE()) IS NULL OR TIMESTAMPDIFF(YEAR, data_nascimento, CURDATE()) = 0 THEN 'Sem Idade'
+                WHEN TIMESTAMPDIFF(YEAR, data_nascimento, CURDATE()) < 25 THEN '18-24'
+                WHEN TIMESTAMPDIFF(YEAR, data_nascimento, CURDATE()) < 35 THEN '25-34'
+                WHEN TIMESTAMPDIFF(YEAR, data_nascimento, CURDATE()) < 45 THEN '35-44'
+                WHEN TIMESTAMPDIFF(YEAR, data_nascimento, CURDATE()) < 55 THEN '45-54'
                 ELSE '55+'
             END as faixa_etaria,
             COUNT(*) as quantidade

@@ -35,16 +35,7 @@ include '../includes/header.php';
                 <i class="fas fa-users me-2"></i>
                 Gerenciar Fiscais
             </h1>
-            <div>
-                <button onclick="exportData('csv')" class="btn btn-success">
-                    <i class="fas fa-download me-2"></i>
-                    Exportar CSV
-                </button>
-                <button onclick="exportData('excel')" class="btn btn-info">
-                    <i class="fas fa-file-excel me-2"></i>
-                    Exportar Excel
-                </button>
-            </div>
+            <!-- Botões de exportação removidos -->
         </div>
     </div>
 </div>

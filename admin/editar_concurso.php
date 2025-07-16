@@ -66,6 +66,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $status = $_POST['status'] ?? 'ativo';
     $descricao = trim($_POST['descricao'] ?? '');
     $termos_aceite = trim($_POST['termos_aceite'] ?? '');
+    // Novos campos de treinamento/manual
+    $data_treinamento = $_POST['data_treinamento'] ?? '';
+    $hora_treinamento = $_POST['hora_treinamento'] ?? '';
+    $tipo_treinamento = $_POST['tipo_treinamento'] ?? 'presencial';
+    $link_treinamento = trim($_POST['link_treinamento'] ?? '');
+    $local_treinamento = trim($_POST['local_treinamento'] ?? '');
+    $link_material_fiscal = trim($_POST['link_material_fiscal'] ?? '');
     
     $errors = [];
     
@@ -82,20 +89,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($errors)) {
         try {
             if ($db) {
+                // Processar upload da logo
+                $logo_orgao = $concurso['logo_orgao'] ?? '';
+                if (isset($_FILES['logo_orgao']) && $_FILES['logo_orgao']['error'] === UPLOAD_ERR_OK) {
+                    $ext = strtolower(pathinfo($_FILES['logo_orgao']['name'], PATHINFO_EXTENSION));
+                    $permitidas = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+                    if (in_array($ext, $permitidas)) {
+                        $nome_arquivo = 'logos/orgao_' . $concurso_id . '_' . time() . '.' . $ext;
+                        if (move_uploaded_file($_FILES['logo_orgao']['tmp_name'], '../' . $nome_arquivo)) {
+                            $logo_orgao = $nome_arquivo;
+                        }
+                    }
+                }
                 // Atualizar no SQLite
                 $stmt = $db->prepare("
                     UPDATE concursos SET 
                         titulo = ?, orgao = ?, numero_concurso = ?, ano_concurso = ?, cidade = ?, estado = ?, 
                         data_prova = ?, horario_inicio = ?, horario_fim = ?, 
                         valor_pagamento = ?, vagas_disponiveis = ?, status = ?, 
-                        descricao = ?, termos_aceite = ?, updated_at = CURRENT_TIMESTAMP
+                        descricao = ?, termos_aceite = ?, 
+                        data_treinamento = ?, hora_treinamento = ?, tipo_treinamento = ?, link_treinamento = ?, local_treinamento = ?, link_material_fiscal = ?,
+                        logo_orgao = ?,
+                        updated_at = CURRENT_TIMESTAMP
                     WHERE id = ?
                 ");
                 
                 $result = $stmt->execute([
                     $titulo, $orgao, $numero_concurso, $ano_concurso, $cidade, $estado, $data_prova,
                     $horario_inicio, $horario_fim, $valor_pagamento,
-                    $vagas_disponiveis, $status, $descricao, $termos_aceite, $concurso_id
+                    $vagas_disponiveis, $status, $descricao, $termos_aceite,
+                    $data_treinamento, $hora_treinamento, $tipo_treinamento, $link_treinamento, $local_treinamento, $link_material_fiscal,
+                    $logo_orgao,
+                    $concurso_id
                 ]);
                 
                 if ($result) {
@@ -145,22 +170,20 @@ include '../includes/header.php';
                     </h5>
                 </div>
                 <div class="card-body">
-                    <form method="POST" action="">
+                    <form method="POST" action="" enctype="multipart/form-data">
                         <input type="hidden" name="csrf_token" value="<?= generateCSRFToken() ?>">
                         
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label for="titulo" class="form-label">Título do Concurso *</label>
-                                    <input type="text" class="form-control" id="titulo" name="titulo" 
-                                           value="<?= htmlspecialchars($concurso['titulo']) ?>" required>
+                                    <input type="text" class="form-control" id="titulo" name="titulo" value="<?= htmlspecialchars($concurso['titulo']) ?>" required>
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label for="orgao" class="form-label">Órgão *</label>
-                                    <input type="text" class="form-control" id="orgao" name="orgao" 
-                                           value="<?= htmlspecialchars($concurso['orgao']) ?>" required>
+                                    <input type="text" class="form-control" id="orgao" name="orgao" value="<?= htmlspecialchars($concurso['orgao']) ?>" required>
                                 </div>
                             </div>
                         </div>
@@ -168,22 +191,29 @@ include '../includes/header.php';
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label for="numero_concurso" class="form-label">Número do Concurso</label>
-                                    <input type="text" class="form-control" id="numero_concurso" name="numero_concurso" 
-                                           value="<?= htmlspecialchars($concurso['numero_concurso'] ?? '') ?>" 
-                                           placeholder="Ex: 001/2024">
+                                    <label for="numero_concurso" class="form-label">Número do Concurso *</label>
+                                    <input type="text" class="form-control" id="numero_concurso" name="numero_concurso" value="<?= htmlspecialchars($concurso['numero_concurso'] ?? '') ?>" placeholder="Ex: 001/2024" required>
                                     <div class="form-text">Número oficial do concurso</div>
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label for="ano_concurso" class="form-label">Ano do Concurso</label>
-                                    <input type="number" class="form-control" id="ano_concurso" name="ano_concurso" 
-                                           value="<?= htmlspecialchars($concurso['ano_concurso'] ?? date('Y')) ?>" 
-                                           min="2000" max="2030">
+                                    <label for="ano_concurso" class="form-label">Ano do Concurso *</label>
+                                    <input type="number" class="form-control" id="ano_concurso" name="ano_concurso" value="<?= htmlspecialchars($concurso['ano_concurso'] ?? date('Y')) ?>" min="2000" max="2030" required>
                                     <div class="form-text">Ano do concurso</div>
                                 </div>
                             </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="logo_orgao" class="form-label">Logo do Concurso</label>
+                            <input type="file" class="form-control" id="logo_orgao" name="logo_orgao" accept="image/*">
+                            <?php if (!empty($concurso['logo_orgao']) && file_exists('../' . $concurso['logo_orgao'])): ?>
+                                <div class="mt-2">
+                                    <img src="../<?= htmlspecialchars($concurso['logo_orgao']) ?>" alt="Logo atual" style="max-height: 60px;">
+                                    <div><small>Logo atual</small></div>
+                                </div>
+                            <?php endif; ?>
                         </div>
                         
                         <div class="row">
@@ -265,6 +295,58 @@ include '../includes/header.php';
                             <textarea class="form-control" id="termos_aceite" name="termos_aceite" rows="8"><?= htmlspecialchars($concurso['termos_aceite'] ?? '') ?></textarea>
                             <div class="form-text">Termos que serão exibidos para os fiscais durante o cadastro.</div>
                         </div>
+                        
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="data_treinamento" class="form-label">Data do Treinamento</label>
+                                    <input type="date" class="form-control" id="data_treinamento" name="data_treinamento" value="<?= htmlspecialchars($concurso['data_treinamento'] ?? '') ?>">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="hora_treinamento" class="form-label">Horário do Treinamento</label>
+                                    <input type="time" class="form-control" id="hora_treinamento" name="hora_treinamento" value="<?= htmlspecialchars($concurso['hora_treinamento'] ?? '') ?>">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="tipo_treinamento" class="form-label">Tipo de Treinamento</label>
+                                    <select class="form-select" id="tipo_treinamento" name="tipo_treinamento" onchange="toggleTreinamentoCampos()">
+                                        <option value="presencial" <?= ($concurso['tipo_treinamento'] ?? 'presencial') === 'presencial' ? 'selected' : '' ?>>Presencial</option>
+                                        <option value="online" <?= ($concurso['tipo_treinamento'] ?? '') === 'online' ? 'selected' : '' ?>>Online</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="link_treinamento" class="form-label">Link do Treinamento (se online)</label>
+                                    <input type="url" class="form-control" id="link_treinamento" name="link_treinamento" value="<?= htmlspecialchars($concurso['link_treinamento'] ?? '') ?>">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="local_treinamento" class="form-label">Local do Treinamento (se presencial)</label>
+                                    <input type="text" class="form-control" id="local_treinamento" name="local_treinamento" value="<?= htmlspecialchars($concurso['local_treinamento'] ?? '') ?>">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="link_material_fiscal" class="form-label">Link do Material/Manual do Fiscal</label>
+                            <input type="url" class="form-control" id="link_material_fiscal" name="link_material_fiscal" value="<?= htmlspecialchars($concurso['link_material_fiscal'] ?? '') ?>">
+                        </div>
+                        <script>
+                        function toggleTreinamentoCampos() {
+                            var tipo = document.getElementById('tipo_treinamento').value;
+                            document.getElementById('link_treinamento').disabled = (tipo !== 'online');
+                            document.getElementById('local_treinamento').disabled = (tipo !== 'presencial');
+                        }
+                        document.addEventListener('DOMContentLoaded', function() {
+                            toggleTreinamentoCampos();
+                        });
+                        </script>
                         
                         <div class="d-grid gap-2 d-md-flex justify-content-md-end">
                             <a href="concursos.php" class="btn btn-secondary me-md-2">

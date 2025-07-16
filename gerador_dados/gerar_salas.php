@@ -18,8 +18,8 @@ function gerarSalas() {
         throw new Exception("Nenhum concurso de teste encontrado. Gere um concurso primeiro.");
     }
     
-    // Obter escolas do concurso
-    $escolas = getEscolasFromCSV($concurso_teste['id']);
+    // Obter escolas do concurso (usando função que busca do banco)
+    $escolas = getEscolasByConcurso($concurso_teste['id']);
     if (empty($escolas)) {
         throw new Exception("Nenhuma escola encontrada para este concurso. Gere escolas primeiro.");
     }
@@ -31,33 +31,33 @@ function gerarSalas() {
         $locais = [
             [
                 'nome' => 'Sala 101',
-                'tipo' => 'sala',
+                'tipo' => 'sala_aula',
                 'capacidade' => 30,
-                'observacoes' => 'Sala de aula - 1º andar'
+                'descricao' => 'Sala de aula - 1º andar'
             ],
             [
                 'nome' => 'Sala 102',
-                'tipo' => 'sala',
+                'tipo' => 'sala_aula',
                 'capacidade' => 30,
-                'observacoes' => 'Sala de aula - 1º andar'
+                'descricao' => 'Sala de aula - 1º andar'
             ],
             [
                 'nome' => 'Sala 103',
-                'tipo' => 'sala',
+                'tipo' => 'sala_aula',
                 'capacidade' => 30,
-                'observacoes' => 'Sala de aula - 1º andar'
+                'descricao' => 'Sala de aula - 1º andar'
             ],
             [
                 'nome' => 'Corredor Principal',
-                'tipo' => 'corredor',
+                'tipo' => 'sala_aula',
                 'capacidade' => 50,
-                'observacoes' => 'Corredor de acesso às salas'
+                'descricao' => 'Corredor de acesso às salas'
             ],
             [
                 'nome' => 'Portaria',
-                'tipo' => 'portaria',
+                'tipo' => 'sala_aula',
                 'capacidade' => 20,
-                'observacoes' => 'Entrada principal da escola'
+                'descricao' => 'Entrada principal da escola'
             ]
         ];
         
@@ -72,7 +72,7 @@ function gerarSalas() {
             // Inserir salas
             $stmt = $db->prepare("
                 INSERT INTO salas (
-                    escola_id, nome, tipo, capacidade, observacoes, 
+                    escola_id, nome, tipo, capacidade, descricao, 
                     status, created_at
                 ) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
             ");
@@ -83,7 +83,7 @@ function gerarSalas() {
                     $local['nome'],
                     $local['tipo'],
                     $local['capacidade'],
-                    $local['observacoes'],
+                    $local['descricao'],
                     'ativo'
                 ]);
                 $salas_criadas[] = $db->lastInsertId();
@@ -94,7 +94,7 @@ function gerarSalas() {
             
             // Criar arquivo se não existir
             if (!file_exists($csv_file)) {
-                $header = "id,escola_id,nome,tipo,capacidade,observacoes,status,created_at\n";
+                $header = "id,escola_id,nome,tipo,capacidade,descricao,status,created_at\n";
                 file_put_contents($csv_file, $header);
             }
             
@@ -120,7 +120,7 @@ function gerarSalas() {
                     $local['nome'],
                     $local['tipo'],
                     $local['capacidade'],
-                    $local['observacoes'],
+                    $local['descricao'],
                     'ativo',
                     date('Y-m-d H:i:s')
                 ];

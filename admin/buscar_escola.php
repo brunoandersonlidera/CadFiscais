@@ -1,51 +1,49 @@
 <?php
 require_once '../config.php';
 
-// Verificar se é admin - comentado temporariamente para teste
-/*
-if (!isAdmin()) {
-    http_response_code(403);
-    echo json_encode(['success' => false, 'message' => 'Acesso negado']);
-    exit;
-}
-*/
+header('Content-Type: application/json');
 
 $db = getDB();
 
-try {
-    $input = json_decode(file_get_contents('php://input'), true);
-    $escola_id = isset($input['escola_id']) ? (int)$input['escola_id'] : 0;
-    
-    // Log para debug
-    error_log("Buscar escola - ID recebido: " . $escola_id);
-    
-    if (!$escola_id) {
-        throw new Exception('ID da escola não informado');
-    }
-    
-    $sql = "SELECT * FROM escolas WHERE id = ?";
+// Se receber concurso_id via GET, retorna todas as escolas desse concurso
+if (isset($_GET['concurso_id'])) {
+    $concurso_id = (int)$_GET['concurso_id'];
+    $sql = "SELECT id, nome FROM escolas WHERE status = 'ativo' AND concurso_id = ? ORDER BY nome";
+    $stmt = $db->prepare($sql);
+    $stmt->execute([$concurso_id]);
+    $escolas = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    echo json_encode($escolas);
+    exit;
+}
+
+// Se não receber concurso_id, retorna todas as escolas ativas
+if (!isset($_GET['concurso_id'])) {
+    $sql = "SELECT id, nome FROM escolas WHERE status = 'ativo' ORDER BY nome";
+    $stmt = $db->prepare($sql);
+    $stmt->execute();
+    $escolas = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    echo json_encode($escolas);
+    exit;
+}
+
+// Compatibilidade: busca por escola_id via POST (uso antigo)
+$input = json_decode(file_get_contents('php://input'), true);
+$escola_id = isset($input['escola_id']) ? (int)$input['escola_id'] : null;
+
+if ($escola_id) {
+    $sql = "SELECT * FROM escolas WHERE id = ? AND status = 'ativo'";
     $stmt = $db->prepare($sql);
     $stmt->execute([$escola_id]);
     $escola = $stmt->fetch(PDO::FETCH_ASSOC);
     
-    // Log para debug
-    error_log("Escola encontrada: " . ($escola ? 'sim' : 'não'));
-    
-    if (!$escola) {
-        throw new Exception('Escola não encontrada');
+    if ($escola) {
+        echo json_encode($escola);
+    } else {
+        http_response_code(404);
+        echo json_encode(['error' => 'Escola não encontrada']);
     }
-    
-    echo json_encode([
-        'success' => true,
-        'escola' => $escola
-    ]);
-    
-} catch (Exception $e) {
-    error_log("Erro ao buscar escola: " . $e->getMessage());
-    logActivity('Erro ao buscar escola: ' . $e->getMessage(), 'ERROR');
-    echo json_encode([
-        'success' => false, 
-        'message' => $e->getMessage()
-    ]);
+} else {
+    http_response_code(400);
+    echo json_encode(['error' => 'ID da escola não fornecido']);
 }
 ?> 

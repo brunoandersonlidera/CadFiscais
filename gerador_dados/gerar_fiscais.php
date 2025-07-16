@@ -18,10 +18,10 @@ function gerarFiscais() {
         throw new Exception("Nenhum concurso de teste encontrado. Gere um concurso primeiro.");
     }
     
-    // Obter escolas e salas
-    $escolas = getEscolasFromCSV($concurso_teste['id']);
+    // Obter escolas do banco de dados
+    $escolas = getEscolasByConcurso($concurso_teste['id']);
     if (empty($escolas)) {
-        throw new Exception("Nenhuma escola encontrada. Gere escolas primeiro.");
+        throw new Exception("Nenhuma escola encontrada para este concurso. Gere escolas primeiro.");
     }
     
     $fiscais_criados = [];
@@ -72,7 +72,8 @@ function gerarFiscais() {
     $fiscal_index = 0;
     
     foreach ($escolas as $escola) {
-        $salas = getSalasFromCSV($escola['id']);
+        // Buscar salas do banco de dados
+        $salas = getSalasByEscola($escola['id']);
         
         foreach ($salas as $sala) {
             // Criar 2 fiscais para cada sala
@@ -131,64 +132,6 @@ function gerarFiscais() {
                     ]);
                     
                     $fiscais_criados[] = $db->lastInsertId();
-                } else {
-                    // Fallback para CSV
-                    $csv_file = 'data/fiscais.csv';
-                    
-                    // Criar arquivo se não existir
-                    if (!file_exists($csv_file)) {
-                        $header = "id,concurso_id,nome,email,ddi,celular,whatsapp,cpf,data_nascimento,genero,endereco,melhor_horario,observacoes,status,status_contato,aceite_termos,data_aceite_termos,ip_cadastro,user_agent,created_at\n";
-                        file_put_contents($csv_file, $header);
-                    }
-                    
-                    // Verificar se já existem fiscais de teste
-                    $fiscais_existentes = getFiscaisFromCSV();
-                    $tem_fiscais_teste = false;
-                    foreach ($fiscais_existentes as $fiscal_existente) {
-                        if ($fiscal_existente['concurso_id'] == $concurso_teste['id'] && strpos($fiscal_existente['nome'], 'TESTE') !== false) {
-                            $tem_fiscais_teste = true;
-                            break;
-                        }
-                    }
-                    
-                    if ($tem_fiscais_teste) {
-                        throw new Exception("Já existem fiscais de teste para este concurso. Remova-os primeiro.");
-                    }
-                    
-                    // Gerar ID único
-                    $novo_id = 1;
-                    if (!empty($fiscais_existentes)) {
-                        $novo_id = max(array_column($fiscais_existentes, 'id')) + 1;
-                    }
-                    
-                    // Adicionar fiscal ao CSV
-                    $handle = fopen($csv_file, 'a');
-                    $linha = [
-                        $novo_id,
-                        $fiscal['concurso_id'],
-                        $fiscal['nome'],
-                        $fiscal['email'],
-                        $fiscal['ddi'],
-                        $fiscal['celular'],
-                        $fiscal['whatsapp'],
-                        $fiscal['cpf'],
-                        $fiscal['data_nascimento'],
-                        $fiscal['genero'],
-                        $fiscal['endereco'],
-                        $fiscal['melhor_horario'],
-                        $fiscal['observacoes'],
-                        $fiscal['status'],
-                        $fiscal['status_contato'],
-                        $fiscal['aceite_termos'],
-                        $fiscal['data_aceite_termos'],
-                        $fiscal['ip_cadastro'],
-                        $fiscal['user_agent'],
-                        date('Y-m-d H:i:s')
-                    ];
-                    fputcsv($handle, $linha);
-                    fclose($handle);
-                    
-                    $fiscais_criados[] = $novo_id;
                 }
                 
                 $fiscal_index++;
