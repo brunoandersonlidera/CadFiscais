@@ -55,16 +55,6 @@ include '../includes/header.php';
                 <i class="fas fa-school me-2"></i>
                 Gerenciar Escolas
             </h1>
-            <div>
-                <a href="../migrar_escolas_concurso.php" class="btn btn-warning me-2" title="Migrar Escolas">
-                    <i class="fas fa-sync-alt me-2"></i>
-                    Migrar Escolas
-                </a>
-                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalEscola">
-                    <i class="fas fa-plus me-2"></i>
-                    Nova Escola
-                </button>
-            </div>
         </div>
     </div>
 </div>
