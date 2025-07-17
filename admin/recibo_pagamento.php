@@ -215,10 +215,17 @@ function imprimirRecibo() {
 
 <?php 
 // Funções auxiliares
-)(\d{3})(\d{3})(\d{2})/', '$1.$2.$3-$4', $cpf);
+function formatCPF($cpf) {
+    $cpf = preg_replace('/\D/', '', $cpf);
+    return preg_replace('/(\d{3})(\d{3})(\d{3})(\d{2})/', '$1.$2.$3-$4', $cpf);
 }
 
-)(\d{5})(\d{4})/', '($1) $2-$3', $phone);
+function formatPhone($phone) {
+    $phone = preg_replace('/\D/', '', $phone);
+    if (strlen($phone) == 11) {
+        return preg_replace('/(\d{2})(\d{5})(\d{4})/', '($1) $2-$3', $phone);
+    } elseif (strlen($phone) == 10) {
+        return preg_replace('/(\d{2})(\d{4})(\d{4})/', '($1) $2-$3', $phone);
     }
     return $phone;
 }
