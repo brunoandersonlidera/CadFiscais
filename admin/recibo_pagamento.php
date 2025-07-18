@@ -215,7 +215,6 @@ function imprimirRecibo() {
 
 <?php 
 
-
 function getStatusPagamentoColor($status) {
     switch ($status) {
         case 'pago': return 'success';
