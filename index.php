@@ -158,7 +158,7 @@ include 'includes/header.php';
                         </a>
                     </div>
                     <div class="col-md-3 mb-3">
-                        <a href="pagamentos.php" class="btn btn-outline-success w-100 h-100 d-flex flex-column align-items-center justify-content-center" style="min-height: 100px;">
+                        <a href="admin/lista_pagamentos.php" class="btn btn-outline-success w-100 h-100 d-flex flex-column align-items-center justify-content-center" style="min-height: 100px;">
                             <i class="fas fa-money-bill-wave fa-2x mb-2"></i>
                             <strong>Controle de Pagamentos</strong>
                             <small class="text-muted">Gestão financeira</small>
@@ -200,12 +200,12 @@ include 'includes/header.php';
                                     <img src="<?= htmlspecialchars($concurso['logo_orgao']) ?>" 
                                          alt="Logo" class="me-2" style="height: 30px;">
                                     <?php endif; ?>
-                                    <h6 class="mb-0"><?= htmlspecialchars($concurso['orgao']) ?></h6>
+                                    <h6 class="mb-0"><?= htmlspecialchars($concurso['orgao']) ?> de <?= htmlspecialchars($concurso['cidade']) ?> - <?= htmlspecialchars($concurso['estado']) ?> </h6>
                                 </div>
                             </div>
                             <div class="card-body">
                                 <h6 class="card-title text-primary">
-                                    <?= htmlspecialchars($concurso['titulo']) ?>
+                                    <?= htmlspecialchars($concurso['titulo']) ?> <?= htmlspecialchars($concurso['numero_concurso']) ?>/<?= htmlspecialchars($concurso['ano_concurso']) ?> da <?= htmlspecialchars($concurso['orgao']) ?> de <?= htmlspecialchars($concurso['cidade']) ?> - <?= htmlspecialchars($concurso['estado']) ?>
                                 </h6>
                                 <p class="card-text text-muted small">
                                     <i class="fas fa-map-marker-alt me-1"></i>
@@ -314,7 +314,7 @@ include 'includes/header.php';
                 <div class="row">
                     <div class="col-md-3 mb-3">
                         <div class="d-grid">
-                            <a href="relatorios.php" class="btn btn-outline-primary">
+                            <a href="admin/relatorios.php" class="btn btn-outline-primary">
                                 <i class="fas fa-chart-bar me-2"></i>
                                 📊 Relatórios
                             </a>
@@ -330,7 +330,7 @@ include 'includes/header.php';
                     </div>
                     <div class="col-md-3 mb-3">
                         <div class="d-grid">
-                            <a href="pagamentos.php" class="btn btn-outline-warning">
+                            <a href="admin/lista_pagamentos.php" class="btn btn-outline-warning">
                                 <i class="fas fa-money-bill-wave me-2"></i>
                                 💰 Controle de Pagamentos
                             </a>

@@ -214,14 +214,7 @@ function imprimirRecibo() {
 </style>
 
 <?php 
-// Funções auxiliares
-)(\d{3})(\d{3})(\d{2})/', '$1.$2.$3-$4', $cpf);
-}
 
-)(\d{5})(\d{4})/', '($1) $2-$3', $phone);
-    }
-    return $phone;
-}
 
 function getStatusPagamentoColor($status) {
     switch ($status) {

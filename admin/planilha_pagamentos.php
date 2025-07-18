@@ -65,7 +65,7 @@ try {
 // Buscar concursos para filtro
 $concursos = [];
 try {
-    $stmt = $db->query("SELECT id, titulo FROM concursos WHERE status = 'ativo' ORDER BY data_prova DESC");
+    $stmt = $db->query("SELECT id, titulo, numero_concurso, ano_concurso, orgao, cidade, estado FROM concursos WHERE status = 'ativo' ORDER BY data_prova DESC");
     $concursos = $stmt->fetchAll();
 } catch (Exception $e) {
     logActivity('Erro ao buscar concursos: ' . $e->getMessage(), 'ERROR');
@@ -118,7 +118,7 @@ include '../includes/header.php';
                             <option value="">Todos</option>
                             <?php foreach ($concursos as $concurso): ?>
                             <option value="<?= $concurso['id'] ?>" <?= $concurso_id == $concurso['id'] ? 'selected' : '' ?>>
-                                <?= htmlspecialchars($concurso['titulo']) ?>
+                            <?= htmlspecialchars($concurso['titulo']) ?> <?= htmlspecialchars($concurso['numero_concurso']) ?>/<?= htmlspecialchars($concurso['ano_concurso']) ?> da <?= htmlspecialchars($concurso['orgao']) ?> de <?= htmlspecialchars($concurso['cidade']) ?>/<?= htmlspecialchars($concurso['estado']) ?>
                             </option>
                             <?php endforeach; ?>
                         </select>
@@ -404,13 +404,6 @@ function exportarPDF() {
 
 <?php 
 // Funções auxiliares
-)(\d{3})(\d{3})(\d{2})/', '$1.$2.$3-$4', $cpf);
-}
-
-)(\d{5})(\d{4})/', '($1) $2-$3', $phone);
-    }
-    return $phone;
-}
 
 function getStatusPagamentoColor($status) {
     switch ($status) {

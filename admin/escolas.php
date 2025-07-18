@@ -12,7 +12,7 @@ $concursos = [];
 
 // Buscar concursos ativos
 try {
-    $stmt = $db->query("SELECT id, titulo, orgao FROM concursos WHERE status = 'ativo' ORDER BY titulo");
+    $stmt = $db->query("SELECT id, titulo, orgao, numero_concurso, ano_concurso, cidade, estado FROM concursos WHERE status = 'ativo' ORDER BY titulo");
     $concursos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (Exception $e) {
     logActivity('Erro ao buscar concursos: ' . $e->getMessage(), 'ERROR');
@@ -55,16 +55,6 @@ include '../includes/header.php';
                 <i class="fas fa-school me-2"></i>
                 Gerenciar Escolas
             </h1>
-            <div>
-                <a href="../migrar_escolas_concurso.php" class="btn btn-warning me-2" title="Migrar Escolas">
-                    <i class="fas fa-sync-alt me-2"></i>
-                    Migrar Escolas
-                </a>
-                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalEscola">
-                    <i class="fas fa-plus me-2"></i>
-                    Nova Escola
-                </button>
-            </div>
         </div>
     </div>
 </div>
@@ -87,7 +77,7 @@ include '../includes/header.php';
                             <option value="">Todos os Concursos</option>
                             <?php foreach ($concursos as $concurso): ?>
                             <option value="<?= $concurso['id'] ?>" <?= $concurso_filtro == $concurso['id'] ? 'selected' : '' ?>>
-                                <?= htmlspecialchars($concurso['titulo']) ?> (<?= htmlspecialchars($concurso['orgao']) ?>)
+                            <?= htmlspecialchars($concurso['titulo']) ?> <?= htmlspecialchars($concurso['numero_concurso']) ?>/<?= htmlspecialchars($concurso['ano_concurso']) ?> da <?= htmlspecialchars($concurso['orgao']) ?> de <?= htmlspecialchars($concurso['cidade']) ?>/<?= htmlspecialchars($concurso['estado']) ?>
                             </option>
                             <?php endforeach; ?>
                         </select>

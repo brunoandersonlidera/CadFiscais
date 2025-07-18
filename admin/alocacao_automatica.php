@@ -273,7 +273,7 @@ include '../includes/header.php';
                                 <option value="">Escolha um concurso...</option>
                                 <?php foreach ($concursos as $concurso): ?>
                                     <option value="<?= $concurso['id'] ?>">
-                                        <?= htmlspecialchars($concurso['titulo']) ?>
+                                    <?= htmlspecialchars($concurso['titulo']) ?> <?= htmlspecialchars($concurso['numero_concurso']) ?>/<?= htmlspecialchars($concurso['ano_concurso']) ?> da <?= htmlspecialchars($concurso['orgao']) ?> de <?= htmlspecialchars($concurso['cidade']) ?>/<?= htmlspecialchars($concurso['estado']) ?>
                                     </option>
                                 <?php endforeach; ?>
                             </select>

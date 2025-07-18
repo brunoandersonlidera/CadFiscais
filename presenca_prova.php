@@ -84,7 +84,7 @@ $concursos = [];
 try {
     $db = getDB();
     if ($db) {
-        $stmt = $db->query("SELECT id, titulo, data_prova FROM concursos WHERE status = 'ativo' ORDER BY data_prova DESC");
+        $stmt = $db->query("SELECT id, titulo, numero_concurso, ano_concurso, orgao, cidade, estado, data_prova FROM concursos WHERE status = 'ativo' ORDER BY data_prova DESC");
         $concursos = $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 } catch (Exception $e) {
@@ -305,7 +305,7 @@ if (isset($_GET['concurso_id']) && !empty($_GET['concurso_id'])) {
                 <option value="">Escolha um concurso...</option>
                 <?php foreach ($concursos as $concurso): ?>
                 <option value="<?= $concurso['id'] ?>" <?= (isset($_GET['concurso_id']) && $_GET['concurso_id'] == $concurso['id']) ? 'selected' : '' ?>>
-                    <?= htmlspecialchars($concurso['titulo']) ?> - <?= date('d/m/Y', strtotime($concurso['data_prova'])) ?>
+                <?= htmlspecialchars($concurso['titulo']) ?> <?= htmlspecialchars($concurso['numero_concurso']) ?>/<?= htmlspecialchars($concurso['ano_concurso']) ?> da <?= htmlspecialchars($concurso['orgao']) ?> de <?= htmlspecialchars($concurso['cidade']) ?>/<?= htmlspecialchars($concurso['estado']) ?>
                 </option>
                 <?php endforeach; ?>
             </select>

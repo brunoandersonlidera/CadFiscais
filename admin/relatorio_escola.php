@@ -37,7 +37,7 @@ try {
 // Buscar concursos ativos
 $concursos = [];
 try {
-    $stmt = $db->query("SELECT id, titulo FROM concursos WHERE status = 'ativo' ORDER BY data_prova DESC");
+    $stmt = $db->query("SELECT id, titulo, numero_concurso, ano_concurso, orgao, cidade, estado FROM concursos WHERE status = 'ativo' ORDER BY data_prova DESC");
     $concursos = $stmt->fetchAll();
 } catch (Exception $e) {
     logActivity('Erro ao buscar concursos: ' . $e->getMessage(), 'ERROR');
@@ -91,7 +91,7 @@ include '../includes/header.php';
                             <select id="concurso_filter" class="form-select form-select-sm d-inline-block w-auto">
                                 <option value="">Todos os concursos</option>
                                 <?php foreach ($concursos as $concurso): ?>
-                                <option value="<?= $concurso['id'] ?>"><?= htmlspecialchars($concurso['titulo']) ?></option>
+                                <option value="<?= $concurso['id'] ?>"><?= htmlspecialchars($concurso['titulo']) ?> <?= htmlspecialchars($concurso['numero_concurso']) ?>/<?= htmlspecialchars($concurso['ano_concurso']) ?> da <?= htmlspecialchars($concurso['orgao']) ?> de <?= htmlspecialchars($concurso['cidade']) ?>/<?= htmlspecialchars($concurso['estado']) ?></option>
                                 <?php endforeach; ?>
                             </select>
                         </p>

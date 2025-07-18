@@ -30,7 +30,7 @@ try {
     $db = getDB();
     if ($db) {
         // Buscar concursos ativos
-        $stmt = $db->query("SELECT id, titulo, numero_concurso, ano_concurso, logo_orgao FROM concursos WHERE status = 'ativo' ORDER BY titulo");
+        $stmt = $db->query("SELECT id, titulo, numero_concurso, ano_concurso, orgao, cidade, estado, logo_orgao FROM concursos WHERE status = 'ativo' ORDER BY titulo");
         $concursos = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
         // Buscar escolas
@@ -512,7 +512,7 @@ function gerarListaPagamentos($filtros) {
                                         <?php foreach ($concursos as $concurso): ?>
                                             <option value="<?= $concurso['id'] ?>" 
                                                     <?= $filtros['concurso_id'] == $concurso['id'] ? 'selected' : '' ?>>
-                                                <?= htmlspecialchars($concurso['titulo']) ?>
+                                                    <?= htmlspecialchars($concurso['titulo']) ?> <?= htmlspecialchars($concurso['numero_concurso']) ?>/<?= htmlspecialchars($concurso['ano_concurso']) ?> da <?= htmlspecialchars($concurso['orgao']) ?> de <?= htmlspecialchars($concurso['cidade']) ?>/<?= htmlspecialchars($concurso['estado']) ?>
                                                 <?php if ($concurso['numero_concurso'] && $concurso['ano_concurso']): ?>
                                                     (<?= $concurso['numero_concurso'] ?>/<?= $concurso['ano_concurso'] ?>)
                                                 <?php endif; ?>
