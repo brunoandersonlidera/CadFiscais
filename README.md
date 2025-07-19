@@ -57,7 +57,6 @@ http://localhost:8000/readme.php
 ```
 
 ## 📝 Observações
-- O arquivo `config.php` **NÃO** deve ser versionado.
 - O instalador web facilita a configuração inicial.
 - Para dúvidas, consulte o manual em `/database/README.md` ou abra uma issue.
 
