@@ -178,6 +178,38 @@ include 'includes/header.php';
 </div>
 <?php endif; ?>
 
+<!-- Menu Público - Certificados -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0">
+                    <i class="fas fa-certificate me-2"></i>
+                    Certificados - Acesso Público
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <a href="certificado_treinamento.php" class="btn btn-outline-warning w-100 h-100 d-flex flex-column align-items-center justify-content-center" style="min-height: 120px;">
+                            <i class="fas fa-download fa-3x mb-3"></i>
+                            <strong>Gerar Certificado</strong>
+                            <small class="text-muted">Para fiscais que participaram do treinamento</small>
+                        </a>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <a href="validar_certificado.php" class="btn btn-outline-info w-100 h-100 d-flex flex-column align-items-center justify-content-center" style="min-height: 120px;">
+                            <i class="fas fa-check-circle fa-3x mb-3"></i>
+                            <strong>Validar Certificado</strong>
+                            <small class="text-muted">Verificar autenticidade de certificados</small>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Concursos Ativos -->
 <div class="row">
     <div class="col-12">

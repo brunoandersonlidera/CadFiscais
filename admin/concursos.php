@@ -130,7 +130,7 @@ include '../includes/header.php';
                             <tr>
                                 <td>#<?= $concurso['id'] ?></td>
                                 <td>
-                                    <strong><?= htmlspecialchars($concurso['titulo']) ?></strong>
+                                    <strong><?= htmlspecialchars($concurso['titulo']) ?> <?= htmlspecialchars($concurso['numero_concurso']) ?>/<?= htmlspecialchars($concurso['ano_concurso']) ?> da <?= htmlspecialchars($concurso['orgao']) ?> de <?= htmlspecialchars($concurso['cidade']) ?>/<?= htmlspecialchars($concurso['estado']) ?></strong>
                                     <br>
                                     <small class="text-muted">
                                         R$ <?= number_format($concurso['valor_pagamento'], 2, ',', '.') ?>
@@ -355,4 +355,4 @@ $(document).ready(function() {
 });
 </script>
 
-<?php include '../includes/footer.php'; ?> 
+<?php include '../includes/footer.php'; ?>

@@ -11,40 +11,32 @@ $fiscais = [];
 
 // Filtros
 $concurso_id = isset($_GET['concurso_id']) ? (int)$_GET['concurso_id'] : null;
-$escola_id = isset($_GET['escola_id']) ? (int)$_GET['escola_id'] : null;
 $data_treinamento = isset($_GET['data_treinamento']) ? $_GET['data_treinamento'] : date('Y-m-d');
 $horario_treinamento = isset($_GET['horario_treinamento']) ? $_GET['horario_treinamento'] : '';
 
 try {
     $sql = "
-        SELECT f.*, c.titulo as concurso_titulo, c.data_prova,
+        SELECT DISTINCT f.*, c.titulo as concurso_titulo, c.data_prova,
                TIMESTAMPDIFF(YEAR, f.data_nascimento, CURDATE()) as idade,
-               a.escola_id, a.sala_id, a.data_alocacao, a.horario_alocacao,
-               e.nome as escola_nome, s.nome as sala_nome
-        FROM alocacoes_fiscais a
-        INNER JOIN fiscais f ON a.fiscal_id = f.id
+               COALESCE(af.escola_id, 0) as escola_id, COALESCE(af.sala_id, 0) as sala_id, 
+               af.data_alocacao, af.horario_alocacao,
+               COALESCE(e.nome, 'N/A') as escola_nome, COALESCE(s.nome, 'N/A') as sala_nome,
+               p.status as status_presenca, p.data_presenca
+        FROM fiscais f 
+        INNER JOIN presenca p ON f.id = p.fiscal_id 
         INNER JOIN concursos c ON f.concurso_id = c.id
-        INNER JOIN escolas e ON a.escola_id = e.id
-        INNER JOIN salas s ON a.sala_id = s.id
+        LEFT JOIN alocacoes_fiscais af ON f.id = af.fiscal_id AND af.status = 'ativo'
+        LEFT JOIN escolas e ON af.escola_id = e.id
+        LEFT JOIN salas s ON af.sala_id = s.id
         WHERE f.status = 'aprovado' 
-        AND a.status = 'ativo' 
-        AND a.tipo_alocacao = 'treinamento'
+        AND p.tipo_presenca = 'treinamento' 
+        AND p.status = 'presente'
     ";
     $params = [];
     
     if ($concurso_id) {
         $sql .= " AND f.concurso_id = ?";
         $params[] = $concurso_id;
-    }
-    
-    if ($escola_id) {
-        $sql .= " AND a.escola_id = ?";
-        $params[] = $escola_id;
-    }
-    
-    if ($horario_treinamento) {
-        $sql .= " AND a.horario_alocacao = ?";
-        $params[] = $horario_treinamento;
     }
     
     $sql .= " ORDER BY e.nome, s.nome, f.nome";
@@ -59,20 +51,13 @@ try {
 // Buscar concursos para filtro
 $concursos = [];
 try {
-    $stmt = $db->query("SELECT id, titulo FROM concursos WHERE status = 'ativo' ORDER BY data_prova DESC");
+    $stmt = $db->query("SELECT id, titulo, numero_concurso, ano_concurso, orgao, cidade, estado FROM concursos WHERE status = 'ativo' ORDER BY data_prova DESC");
     $concursos = $stmt->fetchAll();
 } catch (Exception $e) {
     logActivity('Erro ao buscar concursos: ' . $e->getMessage(), 'ERROR');
 }
 
-// Buscar escolas para filtro
-$escolas = [];
-try {
-    $stmt = $db->query("SELECT id, nome FROM escolas WHERE status = 'ativo' ORDER BY nome");
-    $escolas = $stmt->fetchAll();
-} catch (Exception $e) {
-    logActivity('Erro ao buscar escolas: ' . $e->getMessage(), 'ERROR');
-}
+
 
 $pageTitle = 'Ata de Treinamento';
 include '../includes/header.php';
@@ -111,10 +96,10 @@ include '../includes/header.php';
             </div>
             <div class="card-body">
                 <form method="GET" class="row">
-                    <div class="col-md-3">
+                    <div class="col-md-4">
                         <label for="concurso_id" class="form-label">Concurso</label>
                         <select class="form-select" id="concurso_id" name="concurso_id">
-                            <option value="">Todos os concursos</option>
+                            <option value="">Selecione o Concurso</option>
                             <?php foreach ($concursos as $concurso): ?>
                             <option value="<?= $concurso['id'] ?>" <?= $concurso_id == $concurso['id'] ? 'selected' : '' ?>>
                             <?= htmlspecialchars($concurso['titulo']) ?> <?= htmlspecialchars($concurso['numero_concurso']) ?>/<?= htmlspecialchars($concurso['ano_concurso']) ?> da <?= htmlspecialchars($concurso['orgao']) ?> de <?= htmlspecialchars($concurso['cidade']) ?>/<?= htmlspecialchars($concurso['estado']) ?>
@@ -123,22 +108,11 @@ include '../includes/header.php';
                         </select>
                     </div>
                     <div class="col-md-3">
-                        <label for="escola_id" class="form-label">Escola</label>
-                        <select class="form-select" id="escola_id" name="escola_id">
-                            <option value="">Todas as escolas</option>
-                            <?php foreach ($escolas as $escola): ?>
-                            <option value="<?= $escola['id'] ?>" <?= $escola_id == $escola['id'] ? 'selected' : '' ?>>
-                                <?= htmlspecialchars($escola['nome']) ?>
-                            </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                    <div class="col-md-2">
                         <label for="data_treinamento" class="form-label">Data</label>
                         <input type="date" class="form-control" id="data_treinamento" name="data_treinamento" 
                                value="<?= $data_treinamento ?>">
                     </div>
-                    <div class="col-md-2">
+                    <div class="col-md-3">
                         <label for="horario_treinamento" class="form-label">Horário</label>
                         <select class="form-select" id="horario_treinamento" name="horario_treinamento">
                             <option value="">Todos</option>
@@ -351,47 +325,6 @@ include '../includes/header.php';
 </div>
 
 <script>
-// Atualizar escolas ao mudar concurso
-document.getElementById('concurso_id').addEventListener('change', function() {
-    const concursoId = this.value;
-    const escolaSelect = document.getElementById('escola_id');
-    escolaSelect.innerHTML = '<option value="">Carregando...</option>';
-    
-    if (concursoId) {
-        fetch('buscar_escola.php?concurso_id=' + encodeURIComponent(concursoId))
-            .then(response => response.json())
-            .then(escolas => {
-                escolaSelect.innerHTML = '<option value="">Todas as escolas</option>';
-                escolas.forEach(escola => {
-                    const option = document.createElement('option');
-                    option.value = escola.id;
-                    option.textContent = escola.nome;
-                    escolaSelect.appendChild(option);
-                });
-            })
-            .catch(error => {
-                console.error('Erro ao carregar escolas:', error);
-                escolaSelect.innerHTML = '<option value="">Erro ao carregar</option>';
-            });
-    } else {
-        // Se nenhum concurso selecionado, carregar todas as escolas
-        fetch('buscar_escola.php')
-            .then(response => response.json())
-            .then(escolas => {
-                escolaSelect.innerHTML = '<option value="">Todas as escolas</option>';
-                escolas.forEach(escola => {
-                    const option = document.createElement('option');
-                    option.value = escola.id;
-                    option.textContent = escola.nome;
-                    escolaSelect.appendChild(option);
-                });
-            })
-            .catch(error => {
-                console.error('Erro ao carregar escolas:', error);
-                escolaSelect.innerHTML = '<option value="">Erro ao carregar</option>';
-            });
-    }
-});
 
 function imprimirAta() {
     window.print();
@@ -400,6 +333,11 @@ function imprimirAta() {
 function exportarPDF() {
     window.open('exportar_pdf_ata_treinamento.php?' + new URLSearchParams(window.location.search), '_blank');
 }
+
+// Inicializar ao carregar a página
+document.addEventListener('DOMContentLoaded', function() {
+    // Código JavaScript adicional pode ser adicionado aqui se necessário
+});
 </script>
 
 <style>
@@ -433,4 +371,4 @@ function exportarPDF() {
 
 <?php 
 include '../includes/footer.php'; 
-?> 
+?>

@@ -12,41 +12,6 @@ $fiscais = [];
 // Filtros
 $concurso_id = isset($_GET['concurso_id']) ? (int)$_GET['concurso_id'] : null;
 $escola_id = isset($_GET['escola_id']) ? (int)$_GET['escola_id'] : null;
-$data_prova = isset($_GET['data_prova']) ? $_GET['data_prova'] : date('Y-m-d');
-
-try {
-    $sql = "
-        SELECT f.*, c.titulo as concurso_titulo, c.data_prova,
-               TIMESTAMPDIFF(YEAR, f.data_nascimento, CURDATE()) as idade,
-               a.escola_id, a.sala_id, a.data_alocacao, a.horario_alocacao,
-               e.nome as escola_nome, s.nome as sala_nome
-        FROM fiscais f
-        LEFT JOIN concursos c ON f.concurso_id = c.id
-        LEFT JOIN alocacoes_fiscais a ON f.id = a.fiscal_id AND a.status = 'ativo'
-        LEFT JOIN escolas e ON a.escola_id = e.id
-        LEFT JOIN salas s ON a.sala_id = s.id
-        WHERE f.status = 'aprovado'
-    ";
-    $params = [];
-    
-    if ($concurso_id) {
-        $sql .= " AND f.concurso_id = ?";
-        $params[] = $concurso_id;
-    }
-    
-    if ($escola_id) {
-        $sql .= " AND a.escola_id = ?";
-        $params[] = $escola_id;
-    }
-    
-    $sql .= " ORDER BY e.nome, s.nome, f.nome";
-    
-    $stmt = $db->prepare($sql);
-    $stmt->execute($params);
-    $fiscais = $stmt->fetchAll(PDO::FETCH_ASSOC);
-} catch (Exception $e) {
-    logActivity('Erro ao buscar fiscais: ' . $e->getMessage(), 'ERROR');
-}
 
 // Buscar concursos para filtro
 $concursos = [];
@@ -57,13 +22,49 @@ try {
     logActivity('Erro ao buscar concursos: ' . $e->getMessage(), 'ERROR');
 }
 
-// Buscar escolas para filtro
+// Buscar escolas baseado no concurso selecionado
 $escolas = [];
 try {
-    $stmt = $db->query("SELECT id, nome FROM escolas WHERE status = 'ativo' ORDER BY nome");
-    $escolas = $stmt->fetchAll();
+    if ($concurso_id) {
+        $stmt = $db->prepare("SELECT id, nome FROM escolas WHERE status = 'ativo' AND concurso_id = ? ORDER BY nome");
+        $stmt->execute([$concurso_id]);
+        $escolas = $stmt->fetchAll();
+    }
 } catch (Exception $e) {
     logActivity('Erro ao buscar escolas: ' . $e->getMessage(), 'ERROR');
+}
+
+// Buscar fiscais baseado nos filtros selecionados
+$fiscais = [];
+try {
+    if ($concurso_id) {
+        $sql = "
+            SELECT f.*, c.titulo as concurso_titulo, c.data_prova,
+                   TIMESTAMPDIFF(YEAR, f.data_nascimento, CURDATE()) as idade,
+                   a.escola_id, a.sala_id, a.data_alocacao, a.horario_alocacao,
+                   e.nome as escola_nome, s.nome as sala_nome
+            FROM fiscais f
+            LEFT JOIN concursos c ON f.concurso_id = c.id
+            LEFT JOIN alocacoes_fiscais a ON f.id = a.fiscal_id AND a.status = 'ativo'
+            LEFT JOIN escolas e ON a.escola_id = e.id
+            LEFT JOIN salas s ON a.sala_id = s.id
+            WHERE f.status = 'aprovado' AND f.concurso_id = ?
+        ";
+        $params = [$concurso_id];
+        
+        if ($escola_id) {
+            $sql .= " AND a.escola_id = ?";
+            $params[] = $escola_id;
+        }
+        
+        $sql .= " ORDER BY e.nome, s.nome, f.nome";
+        
+        $stmt = $db->prepare($sql);
+        $stmt->execute($params);
+        $fiscais = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+} catch (Exception $e) {
+    logActivity('Erro ao buscar fiscais: ' . $e->getMessage(), 'ERROR');
 }
 
 $pageTitle = 'Lista de Presença - Dia da Prova';
@@ -102,11 +103,11 @@ include '../includes/header.php';
                 </h5>
             </div>
             <div class="card-body">
-                <form method="GET" class="row">
-                    <div class="col-md-3">
+                <form method="GET" class="row" id="filtroForm">
+                    <div class="col-md-4">
                         <label for="concurso_id" class="form-label">Concurso</label>
-                        <select class="form-select" id="concurso_id" name="concurso_id">
-                            <option value="">Todos os concursos</option>
+                        <select class="form-select" id="concurso_id" name="concurso_id" onchange="atualizarFiltros()">
+                            <option value="">Selecione o Concurso</option>
                             <?php foreach ($concursos as $concurso): ?>
                             <option value="<?= $concurso['id'] ?>" <?= $concurso_id == $concurso['id'] ? 'selected' : '' ?>>
                             <?= htmlspecialchars($concurso['titulo']) ?> <?= htmlspecialchars($concurso['numero_concurso']) ?>/<?= htmlspecialchars($concurso['ano_concurso']) ?> da <?= htmlspecialchars($concurso['orgao']) ?> de <?= htmlspecialchars($concurso['cidade']) ?>/<?= htmlspecialchars($concurso['estado']) ?>
@@ -114,10 +115,10 @@ include '../includes/header.php';
                             <?php endforeach; ?>
                         </select>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-4">
                         <label for="escola_id" class="form-label">Escola</label>
-                        <select class="form-select" id="escola_id" name="escola_id">
-                            <option value="">Todas as escolas</option>
+                        <select class="form-select" id="escola_id" name="escola_id" onchange="atualizarFiltros()" <?= !$concurso_id ? 'disabled' : '' ?>>
+                            <option value="">Selecione a Escola</option>
                             <?php foreach ($escolas as $escola): ?>
                             <option value="<?= $escola['id'] ?>" <?= $escola_id == $escola['id'] ? 'selected' : '' ?>>
                                 <?= htmlspecialchars($escola['nome']) ?>
@@ -125,17 +126,12 @@ include '../includes/header.php';
                             <?php endforeach; ?>
                         </select>
                     </div>
-                    <div class="col-md-3">
-                        <label for="data_prova" class="form-label">Data da Prova</label>
-                        <input type="date" class="form-control" id="data_prova" name="data_prova" 
-                               value="<?= $data_prova ?>">
-                    </div>
-                    <div class="col-md-3">
+                    <div class="col-md-4">
                         <label class="form-label">&nbsp;</label>
                         <div class="d-grid">
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-search me-2"></i>
-                                Filtrar
+                            <button type="button" class="btn btn-secondary" onclick="limparFiltros()">
+                                <i class="fas fa-times me-2"></i>
+                                Limpar Filtros
                             </button>
                         </div>
                     </div>
@@ -147,7 +143,7 @@ include '../includes/header.php';
 
 <!-- Estatísticas -->
 <div class="row mb-4">
-    <div class="col-md-3">
+    <div class="col-md-2">
         <div class="card bg-primary text-white">
             <div class="card-body">
                 <div class="d-flex justify-content-between">
@@ -163,7 +159,7 @@ include '../includes/header.php';
         </div>
     </div>
     
-    <div class="col-md-3">
+    <div class="col-md-2">
         <div class="card bg-success text-white">
             <div class="card-body">
                 <div class="d-flex justify-content-between">
@@ -181,7 +177,7 @@ include '../includes/header.php';
         </div>
     </div>
     
-    <div class="col-md-3">
+    <div class="col-md-2">
         <div class="card bg-info text-white">
             <div class="card-body">
                 <div class="d-flex justify-content-between">
@@ -216,6 +212,24 @@ include '../includes/header.php';
             </div>
         </div>
     </div>
+    
+    <div class="col-md-3">
+        <div class="card bg-secondary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="mb-0">
+                            <?= count(array_filter($fiscais, function($f) { return $f['genero'] == 'M'; })) ?>
+                        </h4>
+                        <p class="mb-0">Homens</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-mars fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- Lista de Presença -->
@@ -225,14 +239,24 @@ include '../includes/header.php';
             <div class="card-header bg-success text-white">
                 <h5 class="mb-0">
                     <i class="fas fa-list me-2"></i>
-                    Lista de Presença - <?= date('d/m/Y', strtotime($data_prova)) ?>
+                    Lista de Presença
                 </h5>
             </div>
             <div class="card-body">
-                <?php if (empty($fiscais)): ?>
-                <div class="alert alert-info">
+                <?php if (!$concurso_id): ?>
+                <div class="alert alert-info text-center">
                     <i class="fas fa-info-circle me-2"></i>
-                    Nenhum fiscal encontrado com os filtros selecionados.
+                    Selecione um concurso para visualizar os fiscais
+                </div>
+                <?php elseif (!$escola_id): ?>
+                <div class="alert alert-warning text-center">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Selecione uma escola para visualizar os fiscais
+                </div>
+                <?php elseif (empty($fiscais)): ?>
+                <div class="alert alert-info text-center">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Nenhum fiscal encontrado para a escola selecionada
                 </div>
                 <?php else: ?>
                 
@@ -324,6 +348,46 @@ include '../includes/header.php';
 </div>
 
 <script>
+function atualizarFiltros() {
+    const form = document.getElementById('filtroForm');
+    const concursoId = document.getElementById('concurso_id').value;
+    const escolaSelect = document.getElementById('escola_id');
+    
+    // Habilita/desabilita o select de escola baseado no concurso
+    if (concursoId) {
+        escolaSelect.disabled = false;
+        // Se mudou o concurso, limpa a escola selecionada
+        if (escolaSelect.getAttribute('data-concurso') !== concursoId) {
+            escolaSelect.value = '';
+            escolaSelect.setAttribute('data-concurso', concursoId);
+        }
+    } else {
+        escolaSelect.disabled = true;
+        escolaSelect.value = '';
+    }
+    
+    // Submete o formulário automaticamente
+    form.submit();
+}
+
+function limparFiltros() {
+    window.location.href = window.location.pathname;
+}
+
+// Inicialização quando a página carrega
+document.addEventListener('DOMContentLoaded', function() {
+    const concursoSelect = document.getElementById('concurso_id');
+    const escolaSelect = document.getElementById('escola_id');
+    
+    // Define o estado inicial do select de escola
+    if (!concursoSelect.value) {
+        escolaSelect.disabled = true;
+    }
+    
+    // Marca o concurso atual no select de escola
+    escolaSelect.setAttribute('data-concurso', concursoSelect.value);
+});
+
 function imprimirLista() {
     window.print();
 }
@@ -356,4 +420,4 @@ function exportarPDF() {
 
 <?php 
 include '../includes/footer.php'; 
-?> 
+?>

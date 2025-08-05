@@ -9,36 +9,45 @@ if (!isAdmin()) {
 $db = getDB();
 $salas = [];
 $escolas = [];
+$concursos = [];
 
 // Filtros
+$concurso_id = isset($_GET['concurso_id']) ? (int)$_GET['concurso_id'] : null;
 $escola_id = isset($_GET['escola_id']) ? (int)$_GET['escola_id'] : null;
 
 try {
-    $sql = "
-        SELECT s.*, e.nome as escola_nome,
-               (SELECT COUNT(*) FROM alocacoes WHERE sala_id = s.id AND status = 'agendada') as total_alocacoes
-        FROM salas s
-        LEFT JOIN escolas e ON s.escola_id = e.id
-        WHERE 1=1
-    ";
-    $params = [];
+    // Buscar concursos ativos
+    $stmt = $db->query("SELECT id, titulo, orgao, numero_concurso, ano_concurso, cidade, estado FROM concursos WHERE status = 'ativo' ORDER BY titulo");
+    $concursos = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    if ($escola_id) {
-        $sql .= " AND s.escola_id = ?";
-        $params[] = $escola_id;
+    // Buscar escolas baseado no concurso selecionado
+    if ($concurso_id) {
+        $stmt = $db->prepare("SELECT id, nome FROM escolas WHERE status = 'ativo' AND concurso_id = ? ORDER BY nome");
+        $stmt->execute([$concurso_id]);
+        $escolas = $stmt->fetchAll();
+    } else {
+        $escolas = [];
     }
     
-    $sql .= " ORDER BY e.nome, s.nome";
-    
-    $stmt = $db->prepare($sql);
-    $stmt->execute($params);
-    $salas = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
-    // Buscar escolas para filtro
-    $stmt = $db->query("SELECT id, nome FROM escolas WHERE status = 'ativo' ORDER BY nome");
-    $escolas = $stmt->fetchAll();
+    // Buscar salas baseado na escola selecionada
+    if ($escola_id && $concurso_id) {
+        $sql = "
+            SELECT s.*, e.nome as escola_nome, c.titulo as concurso_titulo,
+                   (SELECT COUNT(*) FROM alocacoes_fiscais WHERE sala_id = s.id AND status = 'ativo') as total_alocacoes
+            FROM salas s
+            LEFT JOIN escolas e ON s.escola_id = e.id
+            LEFT JOIN concursos c ON e.concurso_id = c.id
+            WHERE s.escola_id = ? AND e.concurso_id = ?
+            ORDER BY s.nome
+        ";
+        $stmt = $db->prepare($sql);
+        $stmt->execute([$escola_id, $concurso_id]);
+        $salas = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } else {
+        $salas = [];
+    }
 } catch (Exception $e) {
-    logActivity('Erro ao buscar salas: ' . $e->getMessage(), 'ERROR');
+    logActivity('Erro ao buscar dados: ' . $e->getMessage(), 'ERROR');
 }
 
 $pageTitle = 'Gerenciar Salas';
@@ -71,11 +80,22 @@ include '../includes/header.php';
                 </h5>
             </div>
             <div class="card-body">
-                <form method="GET" class="row">
+                <form method="GET" class="row" id="filtroForm">
+                    <div class="col-md-4">
+                        <label for="concurso_id" class="form-label">Concurso</label>
+                        <select class="form-select" id="concurso_id" name="concurso_id" onchange="atualizarFiltros()">
+                            <option value="">Selecione o Concurso</option>
+                            <?php foreach ($concursos as $concurso): ?>
+                            <option value="<?= $concurso['id'] ?>" <?= $concurso_id == $concurso['id'] ? 'selected' : '' ?>>
+                                <?= htmlspecialchars($concurso['titulo']) ?> - <?= htmlspecialchars($concurso['orgao']) ?> - <?= htmlspecialchars($concurso['cidade']) ?>/<?= htmlspecialchars($concurso['estado']) ?>
+                            </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
                     <div class="col-md-4">
                         <label for="escola_id" class="form-label">Escola</label>
-                        <select class="form-select" id="escola_id" name="escola_id">
-                            <option value="">Todas as escolas</option>
+                        <select class="form-select" id="escola_id" name="escola_id" onchange="atualizarFiltros()" <?= !$concurso_id ? 'disabled' : '' ?>>
+                            <option value="">Selecione a Escola</option>
                             <?php foreach ($escolas as $escola): ?>
                             <option value="<?= $escola['id'] ?>" <?= $escola_id == $escola['id'] ? 'selected' : '' ?>>
                                 <?= htmlspecialchars($escola['nome']) ?>
@@ -86,9 +106,9 @@ include '../includes/header.php';
                     <div class="col-md-4">
                         <label class="form-label">&nbsp;</label>
                         <div class="d-grid">
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-search me-2"></i>
-                                Filtrar
+                            <button type="button" class="btn btn-secondary" onclick="limparFiltros()">
+                                <i class="fas fa-times me-2"></i>
+                                Limpar Filtros
                             </button>
                         </div>
                     </div>
@@ -182,22 +202,41 @@ include '../includes/header.php';
                 </h5>
             </div>
             <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-striped" id="salasTable">
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Nome</th>
-                                <th>Escola</th>
-                                <th>Tipo</th>
-                                <th>Capacidade</th>
-                                <th>Status</th>
-                                <th>Alocações</th>
-                                <th>Data Cadastro</th>
-                                <th>Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody>
+                <?php if (!$concurso_id): ?>
+                    <div class="text-center py-5">
+                        <i class="fas fa-info-circle fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">Selecione um concurso para visualizar as escolas e salas</h5>
+                        <p class="text-muted">Use os filtros acima para escolher o concurso desejado.</p>
+                    </div>
+                <?php elseif (!$escola_id): ?>
+                    <div class="text-center py-5">
+                        <i class="fas fa-school fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">Selecione uma escola para visualizar suas salas</h5>
+                        <p class="text-muted">Escolha uma escola do concurso selecionado para ver suas salas.</p>
+                    </div>
+                <?php elseif (empty($salas)): ?>
+                    <div class="text-center py-5">
+                        <i class="fas fa-door-open fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">Nenhuma sala encontrada</h5>
+                        <p class="text-muted">Não há salas cadastradas para a escola selecionada.</p>
+                    </div>
+                <?php else: ?>
+                    <div class="table-responsive">
+                        <table class="table table-striped" id="salasTable">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Nome</th>
+                                    <th>Escola</th>
+                                    <th>Tipo</th>
+                                    <th>Capacidade</th>
+                                    <th>Status</th>
+                                    <th>Alocações</th>
+                                    <th>Data Cadastro</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
                             <?php foreach ($salas as $sala): ?>
                             <tr>
                                 <td><?= $sala['id'] ?></td>
@@ -240,6 +279,7 @@ include '../includes/header.php';
                         </tbody>
                     </table>
                 </div>
+                <?php endif; ?>
             </div>
         </div>
     </div>
@@ -469,6 +509,47 @@ function verAlocacoes(salaId) {
         showMessage('Erro ao processar requisição', 'error');
     });
 }
+
+// Função para atualizar filtros em cascata
+function atualizarFiltros() {
+    const concursoId = document.getElementById('concurso_id').value;
+    const escolaId = document.getElementById('escola_id').value;
+    
+    // Se mudou o concurso, limpar escola
+    if (event.target.id === 'concurso_id') {
+        document.getElementById('escola_id').value = '';
+    }
+    
+    // Atualizar página com os filtros
+    const params = new URLSearchParams();
+    if (concursoId) params.append('concurso_id', concursoId);
+    if (escolaId && concursoId) params.append('escola_id', escolaId);
+    
+    window.location.href = 'salas.php' + (params.toString() ? '?' + params.toString() : '');
+}
+
+// Função para limpar filtros
+function limparFiltros() {
+    window.location.href = 'salas.php';
+}
+
+// Habilitar/desabilitar select de escola baseado no concurso
+document.addEventListener('DOMContentLoaded', function() {
+    const concursoSelect = document.getElementById('concurso_id');
+    const escolaSelect = document.getElementById('escola_id');
+    
+    function toggleEscolaSelect() {
+        if (concursoSelect.value) {
+            escolaSelect.disabled = false;
+        } else {
+            escolaSelect.disabled = true;
+            escolaSelect.value = '';
+        }
+    }
+    
+    toggleEscolaSelect();
+    concursoSelect.addEventListener('change', toggleEscolaSelect);
+});
 </script>
 
 <?php 
@@ -485,4 +566,4 @@ function getTipoSalaColor($tipo) {
 }
 
 include '../includes/footer.php'; 
-?> 
+?>

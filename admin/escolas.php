@@ -31,15 +31,10 @@ try {
             ORDER BY e.nome
         ");
         $stmt->execute([$concurso_filtro]);
+        $escolas = $stmt->fetchAll(PDO::FETCH_ASSOC);
     } else {
-        $stmt = $db->query("
-            SELECT e.*, c.titulo as concurso_titulo 
-            FROM escolas e 
-            LEFT JOIN concursos c ON e.concurso_id = c.id 
-            ORDER BY e.nome
-        ");
+        $escolas = []; // Não mostrar escolas se nenhum concurso estiver selecionado
     }
-    $escolas = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (Exception $e) {
     logActivity('Erro ao buscar escolas: ' . $e->getMessage(), 'ERROR');
 }
@@ -74,7 +69,7 @@ include '../includes/header.php';
                     <div class="col-md-6">
                         <label for="concurso" class="form-label">Filtrar por Concurso</label>
                         <select class="form-select" id="concurso" name="concurso" onchange="this.form.submit()">
-                            <option value="">Todos os Concursos</option>
+                            <option value="">Selecione o Concurso</option>
                             <?php foreach ($concursos as $concurso): ?>
                             <option value="<?= $concurso['id'] ?>" <?= $concurso_filtro == $concurso['id'] ? 'selected' : '' ?>>
                             <?= htmlspecialchars($concurso['titulo']) ?> <?= htmlspecialchars($concurso['numero_concurso']) ?>/<?= htmlspecialchars($concurso['ano_concurso']) ?> da <?= htmlspecialchars($concurso['orgao']) ?> de <?= htmlspecialchars($concurso['cidade']) ?>/<?= htmlspecialchars($concurso['estado']) ?>
@@ -181,6 +176,7 @@ include '../includes/header.php';
                 </h5>
             </div>
             <div class="card-body">
+                <?php if ($concurso_filtro && !empty($escolas)): ?>
                 <div class="table-responsive">
                     <table class="table table-striped" id="escolasTable">
                         <thead>
@@ -245,6 +241,19 @@ include '../includes/header.php';
                         </tbody>
                     </table>
                 </div>
+                <?php elseif ($concurso_filtro && empty($escolas)): ?>
+                <div class="text-center py-5">
+                    <i class="fas fa-school text-muted" style="font-size: 3rem;"></i>
+                    <h5 class="mt-3 text-muted">Nenhuma escola encontrada</h5>
+                    <p class="text-muted">Não há escolas cadastradas para o concurso selecionado.</p>
+                </div>
+                <?php else: ?>
+                <div class="text-center py-5">
+                    <i class="fas fa-filter text-muted" style="font-size: 3rem;"></i>
+                    <h5 class="mt-3 text-muted">Selecione um concurso</h5>
+                    <p class="text-muted">Por favor, selecione um concurso para visualizar as escolas disponíveis.</p>
+                </div>
+                <?php endif; ?>
             </div>
         </div>
     </div>
@@ -534,4 +543,4 @@ function verSalas(escolaId) {
 
 <?php 
 include '../includes/footer.php'; 
-?> 
+?>

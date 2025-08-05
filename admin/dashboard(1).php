@@ -47,25 +47,16 @@ try {
     ");
     $stats['concursos_detalhados'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Fiscais por faixa etária (atualizado para intervalos de 4 anos)
+    // Fiscais por faixa etária
     $stmt = $db->query("
         SELECT 
             CASE 
-                WHEN TIMESTAMPDIFF(YEAR, data_nascimento, CURDATE()) IS NULL OR TIMESTAMPDIFF(YEAR, data_nascimento, CURDATE()) < 18 THEN 'Sem Idade'
-                WHEN TIMESTAMPDIFF(YEAR, data_nascimento, CURDATE()) <= 21 THEN '18-21'
-                WHEN TIMESTAMPDIFF(YEAR, data_nascimento, CURDATE()) <= 25 THEN '22-25'
-                WHEN TIMESTAMPDIFF(YEAR, data_nascimento, CURDATE()) <= 29 THEN '26-29'
-                WHEN TIMESTAMPDIFF(YEAR, data_nascimento, CURDATE()) <= 33 THEN '30-33'
-                WHEN TIMESTAMPDIFF(YEAR, data_nascimento, CURDATE()) <= 37 THEN '34-37'
-                WHEN TIMESTAMPDIFF(YEAR, data_nascimento, CURDATE()) <= 41 THEN '38-41'
-                WHEN TIMESTAMPDIFF(YEAR, data_nascimento, CURDATE()) <= 45 THEN '42-45'
-                WHEN TIMESTAMPDIFF(YEAR, data_nascimento, CURDATE()) <= 49 THEN '46-49'
-                WHEN TIMESTAMPDIFF(YEAR, data_nascimento, CURDATE()) <= 53 THEN '50-53'
-                WHEN TIMESTAMPDIFF(YEAR, data_nascimento, CURDATE()) <= 57 THEN '54-57'
-                WHEN TIMESTAMPDIFF(YEAR, data_nascimento, CURDATE()) <= 61 THEN '58-61'
-                WHEN TIMESTAMPDIFF(YEAR, data_nascimento, CURDATE()) <= 65 THEN '62-65'
-                WHEN TIMESTAMPDIFF(YEAR, data_nascimento, CURDATE()) <= 69 THEN '66-69'
-                ELSE '70+'
+                WHEN TIMESTAMPDIFF(YEAR, data_nascimento, CURDATE()) IS NULL OR TIMESTAMPDIFF(YEAR, data_nascimento, CURDATE()) = 0 THEN 'Sem Idade'
+                WHEN TIMESTAMPDIFF(YEAR, data_nascimento, CURDATE()) < 25 THEN '18-24'
+                WHEN TIMESTAMPDIFF(YEAR, data_nascimento, CURDATE()) < 35 THEN '25-34'
+                WHEN TIMESTAMPDIFF(YEAR, data_nascimento, CURDATE()) < 45 THEN '35-44'
+                WHEN TIMESTAMPDIFF(YEAR, data_nascimento, CURDATE()) < 55 THEN '45-54'
+                ELSE '55+'
             END as faixa_etaria,
             COUNT(*) as quantidade
         FROM fiscais 
@@ -425,9 +416,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     datasets: [{
                         data: valuesIdade,
                         backgroundColor: [
-                            '#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6',
-                            '#1abc9c', '#e67e22', '#34495e', '#27ae60', '#c0392b',
-                            '#16a085', '#f1c40f', '#8e44ad', '#7f8c8d', '#2980b9', '#d35400'
+                            '#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6', '#34495e'
                         ],
                         borderWidth: 2,
                         borderColor: '#fff'
@@ -438,31 +427,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     maintainAspectRatio: false,
                     plugins: {
                         legend: {
-                            position: 'bottom',
-                            labels: {
-                                font: {
-                                    size: 12
-                                },
-                                padding: 10
-                            }
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    let label = context.label || '';
-                                    let value = context.parsed || 0;
-                                    let total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                    let percentage = ((value / total) * 100).toFixed(1);
-                                    return `${label}: ${value} (${percentage}%)`;
-                                }
-                            }
+                            position: 'bottom'
                         }
                     }
                 }
             });
-        } else {
-            ctxIdade.getContext('2d').font = '16px Arial';
-            ctxIdade.getContext('2d').fillText('Sem dados disponíveis', 50, 100);
         }
     }
     
@@ -574,4 +543,4 @@ function toggleCadastro() {
 }
 </script>
 
-<?php include '../includes/footer.php'; ?>
+<?php include '../includes/footer.php'; ?> 

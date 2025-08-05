@@ -11,41 +11,40 @@ $db = getDB();
 $fiscais = [];
 
 // Filtros
-$concurso_id = isset($_GET['concurso_id']) && $_GET['concurso_id'] !== '' ? (int)$_GET['concurso_id'] : null;
+$concurso_id = isset($_GET['concurso_id']) ? (int)$_GET['concurso_id'] : null;
 $status = isset($_GET['status']) ? $_GET['status'] : '';
 $genero = isset($_GET['genero']) ? $_GET['genero'] : '';
 
 try {
-    // Buscar fiscais apenas se um concurso_id for selecionado
+    $sql = "
+        SELECT f.*, c.titulo as concurso_titulo,
+               TIMESTAMPDIFF(YEAR, f.data_nascimento, CURDATE()) as idade
+        FROM fiscais f
+        LEFT JOIN concursos c ON f.concurso_id = c.id
+        WHERE 1=1
+    ";
+    $params = [];
+    
     if ($concurso_id) {
-        $sql = "
-            SELECT f.*, c.titulo as concurso_titulo,
-                   TIMESTAMPDIFF(YEAR, f.data_nascimento, CURDATE()) as idade
-            FROM fiscais f
-            LEFT JOIN concursos c ON f.concurso_id = c.id
-            WHERE f.concurso_id = ?
-        ";
-        $params = [$concurso_id];
-        
-        if ($status) {
-            $sql .= " AND f.status = ?";
-            $params[] = $status;
-        }
-        
-        if ($genero) {
-            $sql .= " AND f.genero = ?";
-            $params[] = $genero;
-        }
-        
-        $sql .= " ORDER BY f.nome";
-        
-        $stmt = $db->prepare($sql);
-        $stmt->execute($params);
-        $fiscais = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
-        // Log para depuração
-        error_log("Fiscais encontrados: " . count($fiscais) . " para concurso_id=$concurso_id, status=$status, genero=$genero");
+        $sql .= " AND f.concurso_id = ?";
+        $params[] = $concurso_id;
     }
+    
+    if ($status) {
+        $sql .= " AND f.status = ?";
+        $params[] = $status;
+    }
+    
+    if ($genero) {
+        $sql .= " AND f.genero = ?";
+        $params[] = $genero;
+    }
+    
+    $sql .= " ORDER BY f.nome";
+    
+    $stmt = $db->prepare($sql);
+    $stmt->execute($params);
+    $fiscais = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (Exception $e) {
     logActivity('Erro ao buscar fiscais: ' . $e->getMessage(), 'ERROR');
 }
@@ -59,7 +58,7 @@ try {
     logActivity('Erro ao buscar concursos: ' . $e->getMessage(), 'ERROR');
 }
 
-// Buscar dados do concurso (apenas se concurso_id for especificado)
+// Buscar dados do concurso
 $concurso = null;
 if ($concurso_id) {
     try {
@@ -69,10 +68,37 @@ if ($concurso_id) {
     } catch (Exception $e) {
         logActivity('Erro ao buscar concurso: ' . $e->getMessage(), 'ERROR');
     }
+} else {
+    // Se não especificado, buscar o concurso ativo mais recente
+    try {
+        $stmt = $db->query("SELECT * FROM concursos WHERE status = 'ativo' ORDER BY data_prova DESC LIMIT 1");
+        $concurso = $stmt->fetch();
+    } catch (Exception $e) {
+        logActivity('Erro ao buscar concurso ativo: ' . $e->getMessage(), 'ERROR');
+    }
 }
 
 $pageTitle = 'Relatório de Fiscais';
 include '../includes/header.php';
+
+$instituto_nome = getConfig('instituto_nome', 'Instituto Dignidade Humana');
+$instituto_logo = __DIR__ . '/../logos/instituto.png';
+$instituto_info = getConfig('info_institucional', 'Instituto Dignidade Humana\nEndereço: ...\nContato: ...');
+$pdf = new PDFInstituto('P', PDF_UNIT, PDF_PAGE_FORMAT, true, 'UTF-8', false);
+$pdf->setInstitutoData($instituto_nome, $instituto_logo, $instituto_info);
+$pdf->AddPage();
+$pdf->Ln(18); // Espaço extra após o cabeçalho
+
+// Informações do concurso centralizadas
+if ($concurso) {
+    $pdf->SetFont('helvetica', 'B', 13);
+    $pdf->Cell(0, 8, $concurso['orgao'] . ' - ' . $concurso['cidade'] . ' - ' . $concurso['estado'], 0, 1, 'C');
+    $pdf->SetFont('helvetica', 'B', 12);
+    $pdf->Cell(0, 7, $concurso['titulo'] . ' - ' . $concurso['numero_concurso'] . '/' . $concurso['ano_concurso'], 0, 1, 'C');
+    $pdf->Ln(8);
+}
+
+// Título do relatório
 ?>
 
 <div class="row">
@@ -82,7 +108,7 @@ include '../includes/header.php';
                 <i class="fas fa-users me-2"></i>
                 Relatório de Fiscais
             </h1>
-            <button class="btn btn-danger" onclick="exportarPDF()" <?= !$concurso_id ? 'disabled' : '' ?>>
+            <button class="btn btn-danger" onclick="exportarPDF()">
                 <i class="fas fa-file-pdf me-2"></i> Gerar PDF
             </button>
         </div>
@@ -101,10 +127,10 @@ include '../includes/header.php';
             </div>
             <div class="card-body">
                 <form method="GET" class="row">
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <label for="concurso_id" class="form-label">Concurso</label>
-                        <select class="form-select" id="concurso_id" name="concurso_id" onchange="this.form.submit()">
-                            <option value="">Selecione o concurso</option>
+                        <select class="form-select" id="concurso_id" name="concurso_id">
+                            <option value="">Todos os concursos</option>
                             <?php foreach ($concursos as $concurso): ?>
                             <option value="<?= $concurso['id'] ?>" <?= $concurso_id == $concurso['id'] ? 'selected' : '' ?>>
                             <?= htmlspecialchars($concurso['titulo']) ?> <?= htmlspecialchars($concurso['numero_concurso']) ?>/<?= htmlspecialchars($concurso['ano_concurso']) ?> da <?= htmlspecialchars($concurso['orgao']) ?> de <?= htmlspecialchars($concurso['cidade']) ?>/<?= htmlspecialchars($concurso['estado']) ?>
@@ -112,9 +138,9 @@ include '../includes/header.php';
                             <?php endforeach; ?>
                         </select>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <label for="status" class="form-label">Status</label>
-                        <select class="form-select" id="status" name="status" onchange="this.form.submit()">
+                        <select class="form-select" id="status" name="status">
                             <option value="">Todos os status</option>
                             <option value="pendente" <?= $status == 'pendente' ? 'selected' : '' ?>>Pendente</option>
                             <option value="aprovado" <?= $status == 'aprovado' ? 'selected' : '' ?>>Aprovado</option>
@@ -122,13 +148,22 @@ include '../includes/header.php';
                             <option value="cancelado" <?= $status == 'cancelado' ? 'selected' : '' ?>>Cancelado</option>
                         </select>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <label for="genero" class="form-label">Gênero</label>
-                        <select class="form-select" id="genero" name="genero" onchange="this.form.submit()">
+                        <select class="form-select" id="genero" name="genero">
                             <option value="">Todos</option>
                             <option value="M" <?= $genero == 'M' ? 'selected' : '' ?>>Masculino</option>
                             <option value="F" <?= $genero == 'F' ? 'selected' : '' ?>>Feminino</option>
                         </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">&nbsp;</label>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-search me-2"></i>
+                                Filtrar
+                            </button>
+                        </div>
                     </div>
                 </form>
             </div>
@@ -137,10 +172,8 @@ include '../includes/header.php';
 </div>
 
 <!-- Estatísticas -->
-
-<!-- Estatísticas -->
 <div class="row mb-4">
-    <div class="col-md-2 col-6">
+    <div class="col-md-3">
         <div class="card bg-primary text-white">
             <div class="card-body">
                 <div class="d-flex justify-content-between">
@@ -156,7 +189,7 @@ include '../includes/header.php';
         </div>
     </div>
     
-    <div class="col-md-2 col-6">
+    <div class="col-md-3">
         <div class="card bg-success text-white">
             <div class="card-body">
                 <div class="d-flex justify-content-between">
@@ -174,7 +207,7 @@ include '../includes/header.php';
         </div>
     </div>
     
-    <div class="col-md-2 col-6">
+    <div class="col-md-3">
         <div class="card bg-warning text-white">
             <div class="card-body">
                 <div class="d-flex justify-content-between">
@@ -192,7 +225,7 @@ include '../includes/header.php';
         </div>
     </div>
     
-    <div class="col-md-2 col-6">
+    <div class="col-md-3">
         <div class="card bg-info text-white">
             <div class="card-body">
                 <div class="d-flex justify-content-between">
@@ -204,24 +237,6 @@ include '../includes/header.php';
                     </div>
                     <div class="align-self-center">
                         <i class="fas fa-venus fa-2x"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-md-2 col-6">
-        <div class="card bg-info text-white">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h4 class="mb-0">
-                            <?= count(array_filter($fiscais, function($f) { return $f['genero'] == 'M'; })) ?>
-                        </h4>
-                        <p class="mb-0">Homens</p>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="fas fa-mars fa-2x"></i>
                     </div>
                 </div>
             </div>
@@ -241,52 +256,46 @@ include '../includes/header.php';
             </div>
             <div class="card-body">
                 <div class="table-responsive">
-                    <?php if (!$concurso_id): ?>
-                        <div class="alert alert-info">
-                            Por favor, selecione um concurso para visualizar os fiscais.
-                        </div>
-                    <?php else: ?>
-                        <table class="table table-striped" id="fiscaisTable">
-                            <thead>
-                                <tr>
-                                    <th>ID</th>
-                                    <th>Nome</th>
-                                    <th>Email</th>
-                                    <th>Celular</th>
-                                    <th>CPF</th>
-                                    <th>Idade</th>
-                                    <th>Gênero</th>
-                                    <th>Concurso</th>
-                                    <th>Status</th>
-                                    <th>Data Cadastro</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($fiscais as $fiscal): ?>
-                                <tr>
-                                    <td><?= $fiscal['id'] ?></td>
-                                    <td><?= htmlspecialchars($fiscal['nome']) ?></td>
-                                    <td><?= htmlspecialchars($fiscal['email']) ?></td>
-                                    <td><?= formatPhone($fiscal['celular']) ?></td>
-                                    <td><?= formatCPF($fiscal['cpf']) ?></td>
-                                    <td><?= $fiscal['idade'] ?> anos</td>
-                                    <td>
-                                        <span class="badge bg-<?= $fiscal['genero'] == 'F' ? 'danger' : 'primary' ?>">
-                                            <?= $fiscal['genero'] == 'F' ? 'F' : 'M' ?>
-                                        </span>
-                                    </td>
-                                    <td><?= htmlspecialchars($fiscal['concurso_titulo']) ?></td>
-                                    <td>
-                                        <span class="badge bg-<?= getStatusColor($fiscal['status']) ?>">
-                                            <?= ucfirst($fiscal['status']) ?>
-                                        </span>
-                                    </td>
-                                    <td><?= date('d/m/Y H:i', strtotime($fiscal['created_at'])) ?></td>
-                                </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    <?php endif; ?>
+                    <table class="table table-striped" id="fiscaisTable">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Nome</th>
+                                <th>Email</th>
+                                <th>Celular</th>
+                                <th>CPF</th>
+                                <th>Idade</th>
+                                <th>Gênero</th>
+                                <th>Concurso</th>
+                                <th>Status</th>
+                                <th>Data Cadastro</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($fiscais as $fiscal): ?>
+                            <tr>
+                                <td><?= $fiscal['id'] ?></td>
+                                <td><?= htmlspecialchars($fiscal['nome']) ?></td>
+                                <td><?= htmlspecialchars($fiscal['email']) ?></td>
+                                <td><?= formatPhone($fiscal['celular']) ?></td>
+                                <td><?= formatCPF($fiscal['cpf']) ?></td>
+                                <td><?= $fiscal['idade'] ?> anos</td>
+                                <td>
+                                    <span class="badge bg-<?= $fiscal['genero'] == 'F' ? 'danger' : 'primary' ?>">
+                                        <?= $fiscal['genero'] == 'F' ? 'F' : 'M' ?>
+                                    </span>
+                                </td>
+                                <td><?= htmlspecialchars($fiscal['concurso_titulo']) ?></td>
+                                <td>
+                                    <span class="badge bg-<?= getStatusColor($fiscal['status']) ?>">
+                                        <?= ucfirst($fiscal['status']) ?>
+                                    </span>
+                                </td>
+                                <td><?= date('d/m/Y H:i', strtotime($fiscal['created_at'])) ?></td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
@@ -295,8 +304,7 @@ include '../includes/header.php';
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Inicializar DataTable apenas se houver fiscais
-    <?php if ($concurso_id): ?>
+    // Inicializar DataTable
     $('#fiscaisTable').DataTable({
         language: {
             url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/pt-BR.json'
@@ -309,7 +317,6 @@ document.addEventListener('DOMContentLoaded', function() {
             'pdf', 'print'
         ]
     });
-    <?php endif; ?>
 });
 
 function exportarPDF() {
@@ -334,4 +341,4 @@ function getStatusColor($status) {
 }
 
 include '../includes/footer.php'; 
-?>
+?> 

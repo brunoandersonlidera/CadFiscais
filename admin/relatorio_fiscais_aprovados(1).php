@@ -7,97 +7,82 @@ if (!isAdmin()) {
     redirect('../login.php');
 }
 
-// Habilitar depuração
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
-
-// Log para verificar carregamento
-error_log("fiscais_aprovados.php carregado em " . date('Y-m-d H:i:s'));
-
 $db = getDB();
 $fiscais = [];
+
+// Filtros
 $concurso_id = isset($_GET['concurso_id']) ? (int)$_GET['concurso_id'] : null;
 $escola_id = isset($_GET['escola_id']) ? (int)$_GET['escola_id'] : null;
-$mensagem = $concurso_id ? '' : 'Selecione um concurso para visualizar os fiscais.';
 
-// Buscar fiscais apenas se concurso_id for especificado
-if ($concurso_id) {
-    try {
-        $sql = "
-            SELECT f.*, c.titulo as concurso_titulo, c.data_prova,
-                   TIMESTAMPDIFF(YEAR, f.data_nascimento, CURDATE()) as idade,
-                   a.escola_id, a.sala_id, a.data_alocacao, a.horario_alocacao,
-                   e.nome as escola_nome, s.nome as sala_nome
-            FROM fiscais f
-            LEFT JOIN concursos c ON f.concurso_id = c.id
-            LEFT JOIN alocacoes_fiscais a ON f.id = a.fiscal_id AND a.status = 'ativo'
-            LEFT JOIN escolas e ON a.escola_id = e.id
-            LEFT JOIN salas s ON a.sala_id = s.id
-            WHERE f.status = 'aprovado' AND c.status = 'ativo' AND f.concurso_id = ?
-        ";
-        $params = [$concurso_id];
-        
-        if ($escola_id) {
-            $sql .= " AND a.escola_id = ?";
-            $params[] = $escola_id;
-        }
-        
-        $sql .= " ORDER BY f.nome";
-        
-        $stmt = $db->prepare($sql);
-        $stmt->execute($params);
-        $fiscais = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        error_log("Fiscais encontrados: " . count($fiscais) . " para concurso_id=$concurso_id" . ($escola_id ? ", escola_id=$escola_id" : ""));
-    } catch (Exception $e) {
-        error_log('Erro ao buscar fiscais aprovados: ' . $e->getMessage());
-        $mensagem = 'Erro ao consultar o banco de dados. Tente novamente mais tarde.';
+try {
+    $sql = "
+        SELECT f.*, c.titulo as concurso_titulo, c.data_prova,
+               TIMESTAMPDIFF(YEAR, f.data_nascimento, CURDATE()) as idade,
+               a.escola_id, a.sala_id, a.data_alocacao, a.horario_alocacao,
+               e.nome as escola_nome, s.nome as sala_nome
+        FROM fiscais f
+        LEFT JOIN concursos c ON f.concurso_id = c.id
+        LEFT JOIN alocacoes_fiscais a ON f.id = a.fiscal_id AND a.status = 'ativo'
+        LEFT JOIN escolas e ON a.escola_id = e.id
+        LEFT JOIN salas s ON a.sala_id = s.id
+        WHERE f.status = 'aprovado'
+    ";
+    $params = [];
+    
+    if ($concurso_id) {
+        $sql .= " AND f.concurso_id = ?";
+        $params[] = $concurso_id;
     }
+    
+    if ($escola_id) {
+        $sql .= " AND a.escola_id = ?";
+        $params[] = $escola_id;
+    }
+    
+    $sql .= " ORDER BY f.nome";
+    
+    $stmt = $db->prepare($sql);
+    $stmt->execute($params);
+    $fiscais = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (Exception $e) {
+    logActivity('Erro ao buscar fiscais aprovados: ' . $e->getMessage(), 'ERROR');
 }
 
 // Buscar concursos para filtro
 $concursos = [];
 try {
     $stmt = $db->query("SELECT id, titulo, numero_concurso, ano_concurso, orgao, cidade, estado FROM concursos WHERE status = 'ativo' ORDER BY data_prova DESC");
-    $concursos = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    error_log("Concursos ativos encontrados: " . count($concursos));
+    $concursos = $stmt->fetchAll();
 } catch (Exception $e) {
-    error_log('Erro ao buscar concursos: ' . $e->getMessage());
+    logActivity('Erro ao buscar concursos: ' . $e->getMessage(), 'ERROR');
 }
 
-// Buscar escolas para filtro, limitadas ao concurso selecionado
+// Buscar escolas para filtro
 $escolas = [];
-if ($concurso_id) {
-    try {
-        $stmt = $db->prepare("
-            SELECT id, nome
-            FROM escolas
-            WHERE concurso_id = ? AND status = 'ativo'
-            ORDER BY nome
-        ");
-        $stmt->execute([$concurso_id]);
-        $escolas = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        error_log("Escolas encontradas para concurso_id=$concurso_id: " . count($escolas));
-    } catch (Exception $e) {
-        error_log('Erro ao buscar escolas: ' . $e->getMessage());
-    }
+try {
+    $stmt = $db->query("SELECT id, nome FROM escolas WHERE status = 'ativo' ORDER BY nome");
+    $escolas = $stmt->fetchAll();
+} catch (Exception $e) {
+    logActivity('Erro ao buscar escolas: ' . $e->getMessage(), 'ERROR');
 }
 
 // Buscar dados do concurso
 $concurso = null;
 if ($concurso_id) {
     try {
-        $stmt = $db->prepare("SELECT * FROM concursos WHERE id = ? AND status = 'ativo'");
+        $stmt = $db->prepare("SELECT * FROM concursos WHERE id = ?");
         $stmt->execute([$concurso_id]);
-        $concurso = $stmt->fetch(PDO::FETCH_ASSOC);
-        if (!$concurso) {
-            $mensagem = 'Concurso inválido ou inativo. Selecione um concurso ativo.';
-            $fiscais = [];
-            error_log("Concurso inválido ou inativo: concurso_id=$concurso_id");
-        }
+        $concurso = $stmt->fetch();
     } catch (Exception $e) {
-        error_log('Erro ao buscar concurso: ' . $e->getMessage());
-        $mensagem = 'Erro ao consultar o banco de dados. Tente novamente mais tarde.';
+        logActivity('Erro ao buscar concurso: ' . $e->getMessage(), 'ERROR');
+    }
+} else {
+    // Se não especificado, buscar o concurso ativo mais recente
+    try {
+        $stmt = $db->query("SELECT * FROM concursos WHERE status = 'ativo' ORDER BY data_prova DESC LIMIT 1");
+        $concurso = $stmt->fetch();
+    } catch (Exception $e) {
+        logActivity('Erro ao buscar concurso ativo: ' . $e->getMessage(), 'ERROR');
     }
 }
 
@@ -107,41 +92,26 @@ include '../includes/header.php';
 $instituto_nome = getConfig('instituto_nome', 'Instituto Dignidade Humana');
 $instituto_logo = __DIR__ . '/../logos/instituto.png';
 $instituto_info = getConfig('info_institucional', 'Instituto Dignidade Humana\nEndereço: ...\nContato: ...');
-if ($concurso && $fiscais) {
-    $pdf = new PDFInstituto('P', PDF_UNIT, PDF_PAGE_FORMAT, true, 'UTF-8', false);
-    $pdf->setInstitutoData($instituto_nome, $instituto_logo, $instituto_info);
-    $pdf->AddPage();
-    $pdf->Ln(18);
+$pdf = new PDFInstituto('P', PDF_UNIT, PDF_PAGE_FORMAT, true, 'UTF-8', false);
+$pdf->setInstitutoData($instituto_nome, $instituto_logo, $instituto_info);
+$pdf->AddPage();
+$pdf->Ln(18); // Espaço extra após o cabeçalho
 
-    // Informações do concurso centralizadas
+// Informações do concurso centralizadas
+if ($concurso) {
     $pdf->SetFont('helvetica', 'B', 13);
     $pdf->Cell(0, 8, $concurso['orgao'] . ' - ' . $concurso['cidade'] . ' - ' . $concurso['estado'], 0, 1, 'C');
     $pdf->SetFont('helvetica', 'B', 12);
     $pdf->Cell(0, 7, $concurso['titulo'] . ' - ' . $concurso['numero_concurso'] . '/' . $concurso['ano_concurso'], 0, 1, 'C');
     $pdf->Ln(8);
-
-    // Título do relatório
-    $pdf->SetFont('helvetica', 'B', 16);
-    $pdf->Cell(0, 10, 'Relatório de Fiscais Aprovados', 0, 1, 'C');
-    $pdf->Ln(5);
 }
+
+// Título do relatório
+$pdf->SetFont('helvetica', 'B', 16);
+$pdf->Cell(0, 10, 'Relatório de Fiscais Aprovados', 0, 1, 'C');
+$pdf->Ln(5);
+
 ?>
-
-<style>
-/* Garantir largura do campo Concurso */
-.row.mb-4 .col-md-5 select#concurso_id {
-    width: 100%;
-    padding: 0.5rem;
-}
-.row.mb-4 .col-md-3 select#escola_id {
-    width: 100%;
-    padding: 0.5rem;
-}
-.row.mb-4 .col-md-4 button {
-    width: 100%;
-    padding: 0.5rem;
-}
-</style>
 
 <div class="row">
     <div class="col-12">
@@ -154,6 +124,10 @@ if ($concurso && $fiscais) {
                 <button onclick="exportarPDF()" class="btn btn-danger">
                     <i class="fas fa-file-pdf me-2"></i>
                     Exportar PDF
+                </button>
+                <button onclick="exportarExcel()" class="btn btn-success">
+                    <i class="fas fa-file-excel me-2"></i>
+                    Exportar Excel
                 </button>
             </div>
         </div>
@@ -171,21 +145,21 @@ if ($concurso && $fiscais) {
                 </h5>
             </div>
             <div class="card-body">
-                <form method="GET" class="row" id="filterForm">
-                    <div class="col-md-5">
+                <form method="GET" class="row">
+                    <div class="col-md-4">
                         <label for="concurso_id" class="form-label">Concurso</label>
-                        <select class="form-select" id="concurso_id" name="concurso_id" onchange="this.form.submit()">
-                            <option value="">Selecione o Concurso</option>
+                        <select class="form-select" id="concurso_id" name="concurso_id">
+                            <option value="">Todos os concursos</option>
                             <?php foreach ($concursos as $concurso): ?>
                             <option value="<?= $concurso['id'] ?>" <?= $concurso_id == $concurso['id'] ? 'selected' : '' ?>>
-                                <?= htmlspecialchars($concurso['titulo']) ?> <?= htmlspecialchars($concurso['numero_concurso']) ?>/<?= htmlspecialchars($concurso['ano_concurso']) ?> da <?= htmlspecialchars($concurso['orgao']) ?> de <?= htmlspecialchars($concurso['cidade']) ?>/<?= htmlspecialchars($concurso['estado']) ?>
+                            <?= htmlspecialchars($concurso['titulo']) ?> <?= htmlspecialchars($concurso['numero_concurso']) ?>/<?= htmlspecialchars($concurso['ano_concurso']) ?> da <?= htmlspecialchars($concurso['orgao']) ?> de <?= htmlspecialchars($concurso['cidade']) ?>/<?= htmlspecialchars($concurso['estado']) ?>
                             </option>
                             <?php endforeach; ?>
                         </select>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-4">
                         <label for="escola_id" class="form-label">Escola</label>
-                        <select class="form-select" id="escola_id" name="escola_id" onchange="this.form.submit()">
+                        <select class="form-select" id="escola_id" name="escola_id">
                             <option value="">Todas as escolas</option>
                             <?php foreach ($escolas as $escola): ?>
                             <option value="<?= $escola['id'] ?>" <?= $escola_id == $escola['id'] ? 'selected' : '' ?>>
@@ -195,11 +169,11 @@ if ($concurso && $fiscais) {
                         </select>
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label"> </label>
+                        <label class="form-label">&nbsp;</label>
                         <div class="d-grid">
-                            <button type="button" class="btn btn-primary" onclick="limparFiltro()">
-                                <i class="fas fa-eraser me-2"></i>
-                                Limpar Filtro
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-search me-2"></i>
+                                Filtrar
                             </button>
                         </div>
                     </div>
@@ -209,16 +183,7 @@ if ($concurso && $fiscais) {
     </div>
 </div>
 
-<!-- Mensagem -->
-<?php if ($mensagem): ?>
-    <div class="alert alert-warning mt-3 alert-dismissible fade show" role="alert">
-        <?= htmlspecialchars($mensagem) ?>
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-    </div>
-<?php endif; ?>
-
 <!-- Estatísticas -->
-<?php if (!empty($fiscais)): ?>
 <div class="row mb-4">
     <div class="col-md-3">
         <div class="card bg-success text-white">
@@ -313,6 +278,7 @@ if ($concurso && $fiscais) {
                                 <th>CPF</th>
                                 <th>Idade</th>
                                 <th>Gênero</th>
+                                <th>Concurso</th>
                                 <th>Escola</th>
                                 <th>Sala</th>
                                 <th>Data Aprovação</th>
@@ -332,6 +298,7 @@ if ($concurso && $fiscais) {
                                         <?= $fiscal['genero'] == 'F' ? 'F' : 'M' ?>
                                     </span>
                                 </td>
+                                <td><?= htmlspecialchars($fiscal['concurso_titulo']) ?></td>
                                 <td><?= htmlspecialchars($fiscal['escola_nome'] ?? 'Não alocado') ?></td>
                                 <td><?= htmlspecialchars($fiscal['sala_nome'] ?? 'Não alocado') ?></td>
                                 <td><?= date('d/m/Y H:i', strtotime($fiscal['updated_at'])) ?></td>
@@ -346,6 +313,7 @@ if ($concurso && $fiscais) {
 </div>
 
 <!-- Resumo por Escola -->
+<?php if (!empty($fiscais)): ?>
 <div class="row mt-4">
     <div class="col-12">
         <div class="card">
@@ -406,34 +374,27 @@ if ($concurso && $fiscais) {
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM carregado em fiscais_aprovados.php');
     // Inicializar DataTable
-    if (document.getElementById('fiscaisAprovadosTable')) {
-        console.log('Inicializando DataTable');
-        $('#fiscaisAprovadosTable').DataTable({
-            language: {
-                url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/pt-BR.json'
-            },
-            responsive: true,
-            pageLength: 50,
-            order: [[1, 'asc']],
-            dom: 'Bfrtip',
-            buttons: [
-                'copy', 'csv', 'pdf', 'print'
-            ]
-        });
-    } else {
-        console.log('Tabela #fiscaisAprovadosTable não encontrada');
-    }
+    $('#fiscaisAprovadosTable').DataTable({
+        language: {
+            url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/pt-BR.json'
+        },
+        responsive: true,
+        pageLength: 50,
+        order: [[1, 'asc']],
+        dom: 'Bfrtip',
+        buttons: [
+            'copy', 'csv', 'excel', 'pdf', 'print'
+        ]
+    });
 });
 
 function exportarPDF() {
-    console.log('Exportando PDF com filtros:', window.location.search);
     window.open('exportar_pdf_fiscais_aprovados.php?' + new URLSearchParams(window.location.search), '_blank');
 }
 
-function limparFiltro() {
-    window.location.href = 'fiscais_aprovados.php';
+function exportarExcel() {
+    window.open('exportar_excel_fiscais_aprovados.php?' + new URLSearchParams(window.location.search), '_blank');
 }
 </script>
 
@@ -450,4 +411,4 @@ function getStatusContatoColor($status) {
 }
 
 include '../includes/footer.php'; 
-?>
+?> 

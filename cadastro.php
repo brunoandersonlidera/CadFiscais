@@ -133,7 +133,7 @@ include 'includes/header.php';
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-group">
-                                        <label for="celular"><i class="fas fa-mobile-alt"></i> Celular *</label>
+                                        <label for="celular"><i class="fas fa-mobile-alt"></i> Celular * De preferencia com WhatsApp </label>
                                         <input type="tel" class="form-control" id="celular" name="celular" required 
                                                placeholder="(99) 99999-9999" maxlength="15">
                                         <div class="invalid-feedback" id="celular-error"></div>
@@ -273,15 +273,13 @@ include 'includes/header.php';
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Formulário carregado');
-    
+
     // Função para validar CPF
     function validateCPF(cpf) {
         cpf = cpf.replace(/\D/g, '');
-        
         if (cpf.length !== 11 || /^(\d)\1+$/.test(cpf)) {
             return false;
         }
-        
         let sum = 0;
         for (let i = 0; i < 9; i++) {
             sum += parseInt(cpf.charAt(i)) * (10 - i);
@@ -289,7 +287,6 @@ document.addEventListener('DOMContentLoaded', function() {
         let remainder = (sum * 10) % 11;
         if (remainder === 10 || remainder === 11) remainder = 0;
         if (remainder !== parseInt(cpf.charAt(9))) return false;
-        
         sum = 0;
         for (let i = 0; i < 10; i++) {
             sum += parseInt(cpf.charAt(i)) * (11 - i);
@@ -297,7 +294,6 @@ document.addEventListener('DOMContentLoaded', function() {
         remainder = (sum * 10) % 11;
         if (remainder === 10 || remainder === 11) remainder = 0;
         if (remainder !== parseInt(cpf.charAt(10))) return false;
-        
         return true;
     }
 
@@ -313,36 +309,57 @@ document.addEventListener('DOMContentLoaded', function() {
         if (phoneClean.length < 10 || phoneClean.length > 11) {
             return false;
         }
-        
-        // DDDs válidos no Brasil
         const validDDDs = [11,12,13,14,15,16,17,18,19,21,22,24,27,28,31,32,33,34,35,37,38,41,42,43,44,45,46,47,48,49,51,53,54,55,61,62,63,64,65,66,67,68,69,71,73,74,75,77,79,81,82,83,84,85,86,87,88,89,91,92,93,94,95,96,97,98,99];
-        
         const ddd = parseInt(phoneClean.substring(0, 2));
         if (!validDDDs.includes(ddd)) {
             return false;
         }
-        
-        // Para celular, deve começar com 9
         if (phoneClean.length === 11 && phoneClean.charAt(2) !== '9') {
             return false;
         }
-        
         return true;
     }
 
-    // Máscara para CPF
+    // Função para validar data
+    function validateDate(dia, mes, ano) {
+        const data = new Date(ano, mes - 1, dia);
+        return !isNaN(data.getTime()) && data.getDate() == dia && data.getMonth() == mes - 1 && data.getFullYear() == ano;
+    }
+
+    // Função para calcular idade
+    function calculateAge(dia, mes, ano) {
+        const hoje = new Date();
+        const dataNasc = new Date(ano, mes - 1, dia);
+        let idade = hoje.getFullYear() - dataNasc.getFullYear();
+        const mesAtual = hoje.getMonth() - dataNasc.getMonth();
+        if (mesAtual < 0 || (mesAtual === 0 && hoje.getDate() < dataNasc.getDate())) {
+            idade--;
+        }
+        return idade;
+    }
+
+    // Máscara e validação para CPF
     const cpfInput = document.getElementById('cpf');
     if (cpfInput) {
         cpfInput.addEventListener('input', function(e) {
-            let value = e.target.value.replace(/\D/g, '');
-            value = value.replace(/(\d{3})(\d)/, '$1.$2');
-            value = value.replace(/(\d{3})(\d)/, '$1.$2');
-            value = value.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+            let value = e.target.value.replace(/\D/g, ''); // Remove tudo que não é dígito
+            if (value.length > 11) {
+                value = value.substring(0, 11); // Limita a 11 dígitos
+            }
+            // Aplica a máscara
+            if (value.length > 6) {
+                value = value.replace(/(\d{3})(\d{3})(\d{3})(\d{1,2})/, '$1.$2.$3-$4');
+            } else if (value.length > 3) {
+                value = value.replace(/(\d{3})(\d{1,3})/, '$1.$2');
+            } else if (value.length > 0) {
+                value = value.replace(/(\d{1,3})/, '$1');
+            }
             e.target.value = value;
-            
+
             // Validar CPF em tempo real
-            if (value.length === 14) {
-                if (!validateCPF(value)) {
+            const cleanCpf = value.replace(/\D/g, '');
+            if (cleanCpf.length === 11) {
+                if (!validateCPF(cleanCpf)) {
                     e.target.classList.add('is-invalid');
                     document.getElementById('cpf-error').textContent = 'CPF inválido';
                 } else {
@@ -352,7 +369,34 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             } else {
                 e.target.classList.remove('is-invalid', 'is-valid');
+                document.getElementById('cpf-error').textContent = cleanCpf.length > 0 ? 'CPF incompleto' : '';
+            }
+        });
+
+        // Validação no blur
+        cpfInput.addEventListener('blur', function() {
+            const cleanCpf = this.value.replace(/\D/g, '');
+            if (cleanCpf.length > 0 && cleanCpf.length < 11) {
+                this.classList.add('is-invalid');
+                document.getElementById('cpf-error').textContent = 'CPF incompleto';
+            } else if (cleanCpf.length === 11 && !validateCPF(cleanCpf)) {
+                this.classList.add('is-invalid');
+                document.getElementById('cpf-error').textContent = 'CPF inválido';
+            } else if (cleanCpf.length === 11) {
+                this.classList.remove('is-invalid');
+                this.classList.add('is-valid');
                 document.getElementById('cpf-error').textContent = '';
+            } else {
+                this.classList.remove('is-invalid', 'is-valid');
+                document.getElementById('cpf-error').textContent = '';
+            }
+        });
+
+        // Bloquear caracteres não numéricos
+        cpfInput.addEventListener('keypress', function(e) {
+            const charCode = e.which || e.keyCode;
+            if (charCode < 48 || charCode > 57) {
+                e.preventDefault();
             }
         });
     }
@@ -362,6 +406,9 @@ document.addEventListener('DOMContentLoaded', function() {
     if (celularInput) {
         celularInput.addEventListener('input', function(e) {
             let value = e.target.value.replace(/\D/g, '');
+            if (value.length > 11) {
+                value = value.substring(0, 11);
+            }
             if (value.length <= 10) {
                 value = value.replace(/(\d{2})(\d)/, '($1) $2');
                 value = value.replace(/(\d{4})(\d)/, '$1-$2');
@@ -370,9 +417,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 value = value.replace(/(\d{5})(\d)/, '$1-$2');
             }
             e.target.value = value;
-            
-            // Validar celular em tempo real
-            if (value.length === 15) {
+            if (value.length === 14 || value.length === 15) {
                 const ddi = document.getElementById('ddi').value;
                 if (ddi === '+55' && !validateBrazilianPhone(value)) {
                     e.target.classList.add('is-invalid');
@@ -384,7 +429,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             } else {
                 e.target.classList.remove('is-invalid', 'is-valid');
-                document.getElementById('celular-error').textContent = '';
+                document.getElementById('celular-error').textContent = value.length > 0 ? 'Celular incompleto' : '';
+            }
+        });
+
+        // Bloquear caracteres não numéricos
+        celularInput.addEventListener('keypress', function(e) {
+            const charCode = e.which || e.keyCode;
+            if (charCode < 48 || charCode > 57) {
+                e.preventDefault();
             }
         });
     }
@@ -394,6 +447,9 @@ document.addEventListener('DOMContentLoaded', function() {
     if (whatsappInput) {
         whatsappInput.addEventListener('input', function(e) {
             let value = e.target.value.replace(/\D/g, '');
+            if (value.length > 11) {
+                value = value.substring(0, 11);
+            }
             if (value.length <= 10) {
                 value = value.replace(/(\d{2})(\d)/, '($1) $2');
                 value = value.replace(/(\d{4})(\d)/, '$1-$2');
@@ -402,9 +458,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 value = value.replace(/(\d{5})(\d)/, '$1-$2');
             }
             e.target.value = value;
-            
-            // Validar WhatsApp em tempo real
-            if (value.length === 15) {
+            if (value.length === 14 || value.length === 15) {
                 const ddi = document.getElementById('ddi').value;
                 if (ddi === '+55' && !validateBrazilianPhone(value)) {
                     e.target.classList.add('is-invalid');
@@ -416,50 +470,88 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             } else {
                 e.target.classList.remove('is-invalid', 'is-valid');
-                document.getElementById('whatsapp-error').textContent = '';
+                document.getElementById('whatsapp-error').textContent = value.length > 0 ? 'WhatsApp incompleto' : '';
+            }
+        });
+
+        // Bloquear caracteres não numéricos
+        whatsappInput.addEventListener('keypress', function(e) {
+            const charCode = e.which || e.keyCode;
+            if (charCode < 48 || charCode > 57) {
+                e.preventDefault();
             }
         });
     }
 
-    // Máscara para data de nascimento
+    // Máscara e validação para data de nascimento
     const dataNascimentoInput = document.getElementById('data_nascimento');
     if (dataNascimentoInput) {
         dataNascimentoInput.addEventListener('input', function(e) {
-            let value = e.target.value.replace(/\D/g, '');
-            if (value.length >= 2) {
-                value = value.replace(/(\d{2})(\d)/, '$1/$2');
+            let value = e.target.value.replace(/\D/g, ''); // Remove tudo que não é dígito
+            if (value.length > 8) {
+                value = value.substring(0, 8); // Limita a 8 dígitos
             }
+            // Aplica a máscara
             if (value.length >= 5) {
-                value = value.replace(/(\d{2})(\d{2})(\d)/, '$1/$2/$3');
+                value = value.replace(/(\d{2})(\d{2})(\d{1,4})/, '$1/$2/$3');
+            } else if (value.length >= 2) {
+                value = value.replace(/(\d{2})(\d{1,2})/, '$1/$2');
             }
             e.target.value = value;
-            
+
             // Validar data em tempo real
             if (value.length === 10) {
-                const [dia, mes, ano] = value.split('/');
-                const data = new Date(ano, mes - 1, dia);
-                const hoje = new Date();
-                const idade = hoje.getFullYear() - data.getFullYear();
-                const mesAtual = hoje.getMonth() - data.getMonth();
-                
-                if (mesAtual < 0 || (mesAtual === 0 && hoje.getDate() < data.getDate())) {
-                    idade--;
-                }
-                
-                if (idade < 18) {
-                    e.target.classList.add('is-invalid');
-                    document.getElementById('data_nascimento-error').textContent = 'Você deve ter pelo menos 18 anos';
-                } else if (data.getDate() != dia || data.getMonth() != mes - 1 || data.getFullYear() != ano) {
+                const [dia, mes, ano] = value.split('/').map(Number);
+                if (!validateDate(dia, mes, ano)) {
                     e.target.classList.add('is-invalid');
                     document.getElementById('data_nascimento-error').textContent = 'Data inválida';
                 } else {
-                    e.target.classList.remove('is-invalid');
-                    e.target.classList.add('is-valid');
-                    document.getElementById('data_nascimento-error').textContent = '';
+                    const idade = calculateAge(dia, mes, ano);
+                    if (idade < 18) {
+                        e.target.classList.add('is-invalid');
+                        document.getElementById('data_nascimento-error').textContent = 'Você deve ter pelo menos 18 anos';
+                    } else {
+                        e.target.classList.remove('is-invalid');
+                        e.target.classList.add('is-valid');
+                        document.getElementById('data_nascimento-error').textContent = '';
+                    }
                 }
             } else {
                 e.target.classList.remove('is-invalid', 'is-valid');
+                document.getElementById('data_nascimento-error').textContent = value.length > 0 ? 'Data incompleta' : '';
+            }
+        });
+
+        // Validação no blur
+        dataNascimentoInput.addEventListener('blur', function() {
+            const value = this.value;
+            if (value.length > 0 && value.length < 10) {
+                this.classList.add('is-invalid');
+                document.getElementById('data_nascimento-error').textContent = 'Data incompleta';
+            } else if (value.length === 10) {
+                const [dia, mes, ano] = value.split('/').map(Number);
+                if (!validateDate(dia, mes, ano)) {
+                    this.classList.add('is-invalid');
+                    document.getElementById('data_nascimento-error').textContent = 'Data inválida';
+                } else if (calculateAge(dia, mes, ano) < 18) {
+                    this.classList.add('is-invalid');
+                    document.getElementById('data_nascimento-error').textContent = 'Você deve ter pelo menos 18 anos';
+                } else {
+                    this.classList.remove('is-invalid');
+                    this.classList.add('is-valid');
+                    document.getElementById('data_nascimento-error').textContent = '';
+                }
+            } else {
+                this.classList.remove('is-invalid', 'is-valid');
                 document.getElementById('data_nascimento-error').textContent = '';
+            }
+        });
+
+        // Bloquear caracteres não numéricos
+        dataNascimentoInput.addEventListener('keypress', function(e) {
+            const charCode = e.which || e.keyCode;
+            if (charCode < 48 || charCode > 57) {
+                e.preventDefault();
             }
         });
     }
@@ -482,49 +574,41 @@ document.addEventListener('DOMContentLoaded', function() {
     // Controle do checkbox WhatsApp
     const usaWhatsappCheckbox = document.getElementById('usa_whatsapp');
     const whatsappField = document.getElementById('whatsapp');
+    const celularField = document.getElementById('celular');
     
-    if (usaWhatsappCheckbox && whatsappField) {
+    if (usaWhatsappCheckbox && whatsappField && celularField) {
         usaWhatsappCheckbox.addEventListener('change', function() {
-            whatsappField.disabled = !this.checked;
-            if (!this.checked) {
+            if (this.checked) {
+                whatsappField.disabled = false;
+                if (celularField.value) {
+                    whatsappField.value = celularField.value;
+                    whatsappField.dispatchEvent(new Event('input'));
+                }
+            } else {
+                whatsappField.disabled = true;
                 whatsappField.value = '';
                 whatsappField.classList.remove('is-invalid', 'is-valid');
-            }
-        });
-    }
-
-    // Preencher WhatsApp automaticamente se for igual ao celular
-    const celularField = document.getElementById('celular');
-    if (celularField && whatsappField) {
-        celularField.addEventListener('blur', function() {
-            if (usaWhatsappCheckbox.checked && !whatsappField.value) {
-                whatsappField.value = this.value;
-                // Disparar evento de input para aplicar máscara
-                whatsappField.dispatchEvent(new Event('input'));
+                document.getElementById('whatsapp-error').textContent = '';
             }
         });
     }
 
     // Verificar CPF duplicado via AJAX
-    const cpfField = document.getElementById('cpf');
-    const concursoId = document.querySelector('input[name="concurso_id"]').value;
-    
-    if (cpfField) {
-        cpfField.addEventListener('blur', function() {
+    if (cpfInput) {
+        cpfInput.addEventListener('blur', function() {
             const cpf = this.value.replace(/\D/g, '');
-            if (cpf.length === 11 && validateCPF(this.value)) {
-                // Verificar se CPF já existe
+            if (cpf.length === 11 && validateCPF(cpf)) {
                 fetch('verificar_cpf.php', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',
                     },
-                    body: `cpf=${cpf}&concurso_id=${concursoId}`
+                    body: `cpf=${cpf}&concurso_id=${document.querySelector('input[name="concurso_id"]').value}`
                 })
                 .then(response => response.json())
                 .then(data => {
                     if (data.exists) {
-                        this.classList.add('is-invalid');
+                        cpfInput.classList.add('is-invalid');
                         document.getElementById('cpf-error').textContent = 'CPF já cadastrado neste concurso';
                     }
                 })
@@ -540,16 +624,12 @@ document.addEventListener('DOMContentLoaded', function() {
     if (form) {
         form.addEventListener('submit', function(e) {
             console.log('Formulário sendo enviado...');
-            
-            // Verificar se todos os campos obrigatórios estão preenchidos
             const camposObrigatorios = [
                 'nome', 'email', 'ddi', 'celular', 'genero', 
                 'cpf', 'data_nascimento', 'endereco', 'aceite_termos'
             ];
-            
             let camposVazios = [];
             let camposInvalidos = [];
-            
             camposObrigatorios.forEach(function(campo) {
                 const elemento = document.getElementById(campo);
                 if (elemento) {
@@ -564,31 +644,56 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
             });
-            
+
+            // Verificação específica para CPF
+            const cpfValue = cpfInput.value.replace(/\D/g, '');
+            if (cpfValue.length < 11) {
+                camposInvalidos.push('CPF');
+                cpfInput.classList.add('is-invalid');
+                document.getElementById('cpf-error').textContent = 'CPF incompleto';
+            } else if (!validateCPF(cpfValue)) {
+                camposInvalidos.push('CPF');
+                cpfInput.classList.add('is-invalid');
+                document.getElementById('cpf-error').textContent = 'CPF inválido';
+            }
+
+            // Verificação específica para Data de Nascimento
+            const dataValue = dataNascimentoInput.value;
+            if (dataValue.length < 10) {
+                camposInvalidos.push('Data de Nascimento');
+                dataNascimentoInput.classList.add('is-invalid');
+                document.getElementById('data_nascimento-error').textContent = 'Data incompleta';
+            } else if (dataValue.length === 10) {
+                const [dia, mes, ano] = dataValue.split('/').map(Number);
+                if (!validateDate(dia, mes, ano)) {
+                    camposInvalidos.push('Data de Nascimento');
+                    dataNascimentoInput.classList.add('is-invalid');
+                    document.getElementById('data_nascimento-error').textContent = 'Data inválida';
+                } else if (calculateAge(dia, mes, ano) < 18) {
+                    camposInvalidos.push('Data de Nascimento');
+                    dataNascimentoInput.classList.add('is-invalid');
+                    document.getElementById('data_nascimento-error').textContent = 'Você deve ter pelo menos 18 anos';
+                }
+            }
+
             if (camposVazios.length > 0) {
                 e.preventDefault();
                 alert('Por favor, preencha todos os campos obrigatórios:\n\n' + camposVazios.join('\n'));
                 return false;
             }
-            
             if (camposInvalidos.length > 0) {
                 e.preventDefault();
                 alert('Por favor, corrija os seguintes campos:\n\n' + camposInvalidos.join('\n'));
                 return false;
             }
-            
-            // Validar gênero
             const genero = document.getElementById('genero');
             if (genero && !genero.value) {
                 e.preventDefault();
                 alert('Por favor, selecione seu gênero.');
                 return false;
             }
-            
-            // Validar celular brasileiro se DDI for +55
             const ddi = document.getElementById('ddi');
             const celular = document.getElementById('celular');
-            
             if (ddi && celular && ddi.value === '+55') {
                 if (!validateBrazilianPhone(celular.value)) {
                     e.preventDefault();
@@ -596,26 +701,26 @@ document.addEventListener('DOMContentLoaded', function() {
                     return false;
                 }
             }
-            
-            // Validar aceite dos termos
             const aceiteTermos = document.getElementById('aceite_termos');
             if (aceiteTermos && !aceiteTermos.checked) {
                 e.preventDefault();
                 alert('Você deve aceitar os termos para continuar.');
                 return false;
             }
-            
             console.log('Formulário válido, enviando...');
         });
     }
-    
+
     // Debug: verificar se os elementos existem
     console.log('Elementos do formulário:');
     console.log('Form:', document.getElementById('formCadastro'));
     console.log('Aceite termos:', document.getElementById('aceite_termos'));
     console.log('Nome:', document.getElementById('nome'));
     console.log('Email:', document.getElementById('email'));
+    console.log('CPF:', document.getElementById('cpf'));
+    console.log('Data de Nascimento:', document.getElementById('data_nascimento'));
+    console.log('WhatsApp:', document.getElementById('whatsapp'));
 });
 </script>
 
-<?php include 'includes/footer.php'; ?> 
+<?php include 'includes/footer.php'; ?>

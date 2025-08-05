@@ -190,5 +190,5 @@ $pdf->Cell(0, 6, 'Relatório gerado em: ' . date('d/m/Y H:i:s'), 0, 1, 'L');
 
 // Limpar buffer e enviar PDF
 ob_end_clean();
-$pdf->Output('relatorio_pagamentos.pdf', 'I');
+$pdf->Output('relatorio_pagamentos.pdf', 'D');
 exit; 

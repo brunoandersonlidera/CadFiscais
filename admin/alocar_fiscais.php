@@ -73,8 +73,8 @@ try {
 // Buscar concursos para filtro
 $concursos = [];
 try {
-    $stmt = $db->query("SELECT id, titulo FROM concursos WHERE status = 'ativo' ORDER BY data_prova DESC");
-    $concursos = $stmt->fetchAll();
+    $stmt = $db->query("SELECT id, titulo, numero_concurso, ano_concurso, orgao, cidade, estado FROM concursos WHERE status = 'ativo' ORDER BY data_prova DESC");
+    $concursos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (Exception $e) {
     logActivity('Erro ao buscar concursos: ' . $e->getMessage(), 'ERROR');
 }
@@ -130,31 +130,25 @@ include '../includes/header.php';
                 <form method="GET" class="row">
                     <div class="col-md-4">
                         <label for="concurso_id" class="form-label">Concurso</label>
-                        <select class="form-select" id="concurso_id" name="concurso_id">
-                            <option value="">Todos os concursos</option>
+                        <select class="form-select" id="concurso_id" name="concurso_id" onchange="this.form.submit()">
+                            <option value="">Selecione o concurso</option>
                             <?php foreach ($concursos as $concurso): ?>
                             <option value="<?= $concurso['id'] ?>" <?= $concurso_id == $concurso['id'] ? 'selected' : '' ?>>
-                            <?= htmlspecialchars($concurso['titulo']) ?> <?= htmlspecialchars($concurso['numero_concurso']) ?>/<?= htmlspecialchars($concurso['ano_concurso']) ?> da <?= htmlspecialchars($concurso['orgao']) ?> de <?= htmlspecialchars($concurso['cidade']) ?>/<?= htmlspecialchars($concurso['estado']) ?>
+                                <?= htmlspecialchars($concurso['titulo']) ?> <?= htmlspecialchars($concurso['numero_concurso']) ?>/<?= htmlspecialchars($concurso['ano_concurso']) ?> da <?= htmlspecialchars($concurso['orgao']) ?> de <?= htmlspecialchars($concurso['cidade']) ?>/<?= htmlspecialchars($concurso['estado']) ?>
                             </option>
                             <?php endforeach; ?>
                         </select>
                     </div>
                     <div class="col-md-4">
                         <label for="status_alocacao" class="form-label">Status de Alocação</label>
-                        <select class="form-select" id="status_alocacao" name="status_alocacao">
+                        <select class="form-select" id="status_alocacao" name="status_alocacao" onchange="this.form.submit()">
                             <option value="">Todos</option>
                             <option value="alocado" <?= $status_alocacao === 'alocado' ? 'selected' : '' ?>>Alocados</option>
                             <option value="nao_alocado" <?= $status_alocacao === 'nao_alocado' ? 'selected' : '' ?>>Não Alocados</option>
                         </select>
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label">&nbsp;</label>
-                        <div class="d-grid">
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-search me-2"></i>
-                                Filtrar
-                            </button>
-                        </div>
+                        <!-- Botão de filtrar removido conforme solicitado -->
                     </div>
                 </form>
             </div>
@@ -162,6 +156,7 @@ include '../includes/header.php';
     </div>
 </div>
 
+<?php if ($concurso_id && !empty($fiscais)): ?>
 <!-- Estatísticas -->
 <div class="row mb-4">
     <div class="col-md-3">
@@ -234,6 +229,7 @@ include '../includes/header.php';
         </div>
     </div>
 </div>
+<?php endif; ?>
 
 <!-- Lista de Fiscais -->
 <div class="row">
@@ -246,7 +242,7 @@ include '../includes/header.php';
                 </h5>
             </div>
             <div class="card-body">
-                <?php if (!empty($fiscais)): ?>
+                <?php if ($concurso_id && !empty($fiscais)): ?>
                 <div class="table-responsive">
                     <table class="table table-striped table-hover" id="fiscaisTable">
                         <thead>
@@ -346,11 +342,17 @@ include '../includes/header.php';
                         </tbody>
                     </table>
                 </div>
-                <?php else: ?>
+                <?php elseif ($concurso_id): ?>
                 <div class="text-center py-5">
                     <i class="fas fa-users text-muted" style="font-size: 3rem;"></i>
                     <h5 class="mt-3 text-muted">Nenhum fiscal encontrado</h5>
                     <p class="text-muted">Tente ajustar os filtros ou cadastrar novos fiscais.</p>
+                </div>
+                <?php else: ?>
+                <div class="text-center py-5">
+                    <i class="fas fa-filter text-muted" style="font-size: 3rem;"></i>
+                    <h5 class="mt-3 text-muted">Selecione um concurso</h5>
+                    <p class="text-muted">Por favor, selecione um concurso para visualizar os fiscais disponíveis.</p>
                 </div>
                 <?php endif; ?>
             </div>
@@ -587,4 +589,4 @@ function alocarTodosFiscais() {
 }
 </script>
 
-<?php include '../includes/footer.php'; ?> 
+<?php include '../includes/footer.php'; ?>

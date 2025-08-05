@@ -147,11 +147,10 @@ foreach ($escolas_agrupadas as $escola_nome => $fiscais_escola) {
     $pdf->SetFont('helvetica', 'B', 9);
     $pdf->SetFillColor(240, 240, 240);
     $pdf->Cell(10, 8, '#', 1, 0, 'C', true);
-    $pdf->Cell(60, 8, 'Nome', 1, 0, 'L', true);
-    $pdf->Cell(30, 8, 'CPF', 1, 0, 'L', true);
+    $pdf->Cell(65, 8, 'Nome', 1, 0, 'L', true);
     $pdf->Cell(25, 8, 'Sala', 1, 0, 'L', true);
     $pdf->Cell(20, 8, 'Horário', 1, 0, 'L', true);
-    $pdf->Cell(45, 8, 'Assinatura', 1, 1, 'C', true);
+    $pdf->Cell(60, 8, 'Assinatura', 1, 1, 'C', true);
     
     // Dados dos fiscais
     $pdf->SetFont('helvetica', '', 8);
@@ -166,21 +165,19 @@ foreach ($escolas_agrupadas as $escola_nome => $fiscais_escola) {
             $pdf->SetFont('helvetica', 'B', 9);
             $pdf->SetFillColor(240, 240, 240);
             $pdf->Cell(10, 8, '#', 1, 0, 'C', true);
-            $pdf->Cell(60, 8, 'Nome', 1, 0, 'L', true);
-            $pdf->Cell(30, 8, 'CPF', 1, 0, 'L', true);
+            $pdf->Cell(65, 8, 'Nome', 1, 0, 'L', true);
             $pdf->Cell(25, 8, 'Sala', 1, 0, 'L', true);
             $pdf->Cell(20, 8, 'Horário', 1, 0, 'L', true);
-            $pdf->Cell(45, 8, 'Assinatura', 1, 1, 'C', true);
+            $pdf->Cell(60, 8, 'Assinatura', 1, 1, 'C', true);
             $pdf->SetFont('helvetica', '', 8);
             $pdf->SetFillColor(255, 255, 255);
         }
         
         $pdf->Cell(10, 6, $index + 1, 1, 0, 'C');
-        $pdf->Cell(60, 6, substr($fiscal['nome'], 0, 30), 1, 0, 'L');
-        $pdf->Cell(30, 6, $fiscal['cpf'], 1, 0, 'L');
+        $pdf->Cell(65, 6, substr($fiscal['nome'], 0, 30), 1, 0, 'L');
         $pdf->Cell(25, 6, substr($fiscal['sala_nome'] ?? 'N/A', 0, 12), 1, 0, 'L');
         $pdf->Cell(20, 6, $fiscal['horario_alocacao'] ?? 'N/A', 1, 0, 'L');
-        $pdf->Cell(45, 6, '', 1, 1, 'C'); // Espaço para assinatura
+        $pdf->Cell(60, 6, '', 1, 1, 'C'); // Espaço para assinatura
     }
     
     $pdf->Ln(5);
@@ -212,6 +209,6 @@ header('Cache-Control: private, max-age=0, must-revalidate');
 header('Pragma: public');
 
 // Saída do PDF
-$pdf->Output('lista_presenca_' . date('Y-m-d_H-i-s') . '.pdf', 'D');
+$pdf->Output('lista_presenca_' . date('Y-m-d_H-i-s') . '.pdf', 'I');
 exit;
 ?> 

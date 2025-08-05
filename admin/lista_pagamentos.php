@@ -35,6 +35,9 @@ try {
     if ($concurso_id) {
         $sql .= " AND f.concurso_id = ?";
         $params[] = $concurso_id;
+    } else {
+        // Se nenhum concurso for selecionado, não retorna nenhum fiscal
+        $sql .= " AND 1=0";
     }
     
     if ($escola_id) {
@@ -110,9 +113,9 @@ include '../includes/header.php';
             <div class="card-body">
                 <form method="GET" class="row">
                     <div class="col-md-4">
-                        <label for="concurso_id" class="form-label">Concurso</label>
+                        <label for="concurso_id" class="form-label">Selecione o Concurso</label>
                         <select class="form-select" id="concurso_id" name="concurso_id" onchange="this.form.submit()">
-                            <option value="">Todos os concursos</option>
+                            <option value="">Selecione o Concurso</option>
                             <?php foreach ($concursos as $concurso): ?>
                             <option value="<?= $concurso['id'] ?>" <?= $concurso_id == $concurso['id'] ? 'selected' : '' ?>>
                             <?= htmlspecialchars($concurso['titulo']) ?> <?= htmlspecialchars($concurso['numero_concurso']) ?>/<?= htmlspecialchars($concurso['ano_concurso']) ?> da <?= htmlspecialchars($concurso['orgao']) ?> de <?= htmlspecialchars($concurso['cidade']) ?>/<?= htmlspecialchars($concurso['estado']) ?>
@@ -132,7 +135,7 @@ include '../includes/header.php';
                         </select>
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label">&nbsp;</label>
+                        <label class="form-label"> </label>
                         <div class="d-grid">
                             <a href="lista_pagamentos.php" class="btn btn-secondary">
                                 <i class="fas fa-times me-2"></i>
@@ -451,4 +454,4 @@ function exportarPDF() {
 
 <?php 
 include '../includes/footer.php'; 
-?> 
+?>

@@ -108,7 +108,6 @@ if (!$concurso_id) {
                     </div>
                     <div class="card-body">
                         <form method="GET" action="" target="_blank">
-
                             <div class="mb-3">
                                 <label for="concurso_id" class="form-label">Selecione o Concurso:</label>
                                 <select class="form-select" id="concurso_id" name="concurso_id" required>
@@ -116,7 +115,6 @@ if (!$concurso_id) {
                                     <?php foreach ($concursos as $concurso): ?>
                                         <option value="<?= $concurso['id'] ?>">
                                             <?= htmlspecialchars($concurso['titulo'] . ' - ' . $concurso['orgao'] . ' de ' . $concurso['cidade'] . '-' . $concurso['estado']) ?>
-
                                             (<?= date('d/m/Y', strtotime($concurso['data_prova'])) ?>)
                                         </option>
                                     <?php endforeach; ?>

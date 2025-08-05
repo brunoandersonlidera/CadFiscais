@@ -14,7 +14,7 @@
     <!-- SweetAlert2 -->
     <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
     <!-- IMask -->
-    <script src="https://unpkg.com/imask@7.6.1/dist/imask.min.js"></script>
+    <script src="https://unpkg.com/imask"></script>
     
     <style>
         :root {
@@ -269,11 +269,13 @@
                                 <i class="fas fa-chart-bar me-2"></i>Relatórios Gerais
                             </a></li>
                             <li><a class="dropdown-item" href="<?= $isAdmin ? 'relatorio_fiscais.php' : 'admin/relatorio_fiscais.php' ?>">
-                                <i class="fas fa-list me-2"></i>Gerar Ata Fiscais Inscritos
+                                <i class="fas fa-list me-2"></i>Exportar Fiscais (PDF/Excel)
                             </a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="<?= $isAdmin ? 'admin_certificados.php' : 'admin/admin_certificados.php' ?>">
-                                <i class="fas fa-certificate me-2"></i>Gerenciar Certificados
+                            <li><a class="dropdown-item" href="<?= $isAdmin ? 'exportar_pdf_fiscais.php' : 'admin/exportar_pdf_fiscais.php' ?>">
+                                <i class="fas fa-file-pdf me-2"></i> Relação de Fiscais Inscritos
+                            </a></li>
+                            <li><a class="dropdown-item" href="<?= $isAdmin ? 'exportar_pdf_fiscais_aprovados.php' : 'admin/exportar_pdf_fiscais_aprovados.php' ?>">
+                                <i class="fas fa-file-pdf me-2"></i> Relação de Fiscais Aprovados
                             </a></li>
                         </ul>
                     </li>
@@ -328,7 +330,7 @@
                     <?php if (isLoggedIn()): ?>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-user me-1"></i><?= htmlspecialchars($_SESSION['user_name'] ?? 'Usuário') ?>
+                            <i class="fas fa-user me-1"></i><?= htmlspecialchars($_SESSION['username'] ?? 'Admin') ?>
                         </a>
                         <ul class="dropdown-menu">
                             <li><a class="dropdown-item" href="<?= $isAdmin ? 'configuracoes.php' : 'admin/configuracoes.php' ?>">
@@ -379,7 +381,8 @@
         if ($message): 
         ?>
         <div class="alert alert-<?= $message['type'] ?? 'info' ?> alert-dismissible fade show" role="alert">
+            <i class="fas fa-<?= $message['type'] === 'success' ? 'check-circle' : ($message['type'] === 'error' ? 'exclamation-triangle' : 'info-circle') ?> me-2"></i>
             <?= htmlspecialchars($message['text']) ?>
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
-        <?php endif; ?>
+        <?php endif; ?> 
