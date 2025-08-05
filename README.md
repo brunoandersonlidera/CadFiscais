@@ -219,6 +219,8 @@ CadFiscais/
 - ✅ Relatórios em PDF
 - ✅ Sistema de logs
 - ✅ Validações de segurança
+- ✅ Sistema de certificados de treinamento
+- ✅ Validação de certificados por QR Code
 
 ### Tecnologias Utilizadas
 - ✅ PHP 7.4+
@@ -248,6 +250,14 @@ CadFiscais/
 
 ## 📝 Changelog
 
+### Versão 1.1.0 (2025-01-XX)
+- ✅ Sistema de certificados de treinamento implementado
+- ✅ Validação de certificados por código simplificada
+- ✅ QR Code simplificado para validação
+- ✅ Correção do cabeçalho para exibir nome do usuário
+- ✅ Remoção de campos desnecessários na validação
+- ✅ Melhorias na interface do usuário
+
 ### Versão 1.0.0 (2025-01-XX)
 - ✅ Sistema inicial implementado
 - ✅ Cadastro público funcionando
@@ -259,4 +269,4 @@ CadFiscais/
 ---
 
 **Desenvolvido para o Instituto Dignidade Humana (IDH)**
-*Sistema de Cadastro de Fiscais - Versão 1.0.0* 
+*Sistema de Cadastro de Fiscais - Versão 1.1.0*
